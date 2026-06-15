@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+/* Dark mode is the default; light/system themes opt in via a `data-theme` attr
+   on <html>. Tailwind v4 variant customisation is done with @custom-variant. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SFMono-Regular", "Menlo", "Consolas", monospace;
+
+  /* Dark palette (default) */
+  --color-bg: #0a0a0a;
+  --color-surface: #141414;
+  --color-fg: #e8e8e8;
+  --color-muted: #8a8a8a;
+  --color-line: #262626;
+  --color-accent: #cc0000;
+  --color-accent-hi: #ff1a1a;
+  --color-link: #4d9fff;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+/* Light theme overrides */
+[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-fg: #111111;
+  --color-muted: #555555;
+  --color-line: #cccccc;
+  --color-accent: #b00000;
+  --color-accent-hi: #d40000;
+  --color-link: #0a58ca;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--color-fg);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 1px;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* Tight, dense headline list — Drudge-style */
+.headline-link {
+  display: inline;
+  color: var(--color-fg);
+  font-weight: 600;
+}
+.headline-link:hover {
+  color: var(--color-accent-hi);
+  text-decoration: underline;
+}
+.headline-link[data-priority="critical"] {
+  color: var(--color-accent-hi);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.siren {
+  color: var(--color-accent-hi);
+}
+
+.col-rule {
+  border-right: 1px solid var(--color-line);
+}
+@media (max-width: 767px) {
+  .col-rule {
+    border-right: 0;
+  }
+}
+
+/* Mobile accordion caret */
+.caret-toggle {
+  -webkit-tap-highlight-color: transparent;
+}
