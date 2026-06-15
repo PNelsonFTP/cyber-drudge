@@ -10,18 +10,25 @@ export function DailyBrief(props: { brief: DailyBrief | null }) {
   if (!props.brief) return null;
   const b = props.brief;
   return (
-    <section className="my-2 p-2 bg-[var(--color-surface)] border-l-2 border-[var(--color-accent)]">
-      <div className="text-[10px] mono uppercase tracking-widest text-[var(--color-muted)] mb-1">
-        Daily Brief · {b.source === "llm" ? "AI summary" : "curated"}
+    <section className="mb-6">
+      <header className="section-bar flex items-center gap-2 px-3 py-2 mb-2">
+        <h2 className="font-bold uppercase text-[13px] tracking-wider mono">
+          Daily Brief
+        </h2>
+        <span className="text-[10px] mono section-meta">
+          {b.source === "llm" ? "AI summary" : "curated"}
+        </span>
+      </header>
+      <div className="px-1">
+        <div className="font-bold text-[14px]">{b.headline}</div>
+        {b.bullets.length > 0 && (
+          <ul className="mt-1 text-[12px] list-disc list-inside space-y-0.5">
+            {b.bullets.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        )}
       </div>
-      <div className="font-bold text-[14px]">{b.headline}</div>
-      {b.bullets.length > 0 && (
-        <ul className="mt-1 text-[12px] list-disc list-inside space-y-0.5">
-          {b.bullets.map((s, i) => (
-            <li key={i}>{s}</li>
-          ))}
-        </ul>
-      )}
     </section>
   );
 }

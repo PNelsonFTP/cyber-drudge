@@ -252,9 +252,11 @@ function SingleColumnList(props: {
 }) {
   return (
     <section className="max-w-2xl mx-auto py-2">
-      <h2 className="font-bold uppercase mono text-[13px] tracking-wider mb-2">
-        {props.title}
-      </h2>
+      <header className="section-bar flex items-center px-3 py-2 mb-4">
+        <h2 className="font-bold uppercase mono text-[13px] tracking-wider">
+          {props.title}
+        </h2>
+      </header>
       {props.articles.length === 0 ? (
         <p className="text-[13px] text-[var(--color-muted)]">Nothing here yet.</p>
       ) : (
