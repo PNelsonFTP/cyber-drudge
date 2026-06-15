@@ -3,15 +3,14 @@ import type { StocksPayload } from "../lib/types";
 /**
  * src/components/StockTicker.tsx
  * ------------------------------
- * Dark bar of sector-relevant tickers (CRWD, PANW, S, FTNT, etc). Green
- * triangles up for gainers, red down for losers. Hidden entirely if the
- * build produced no quotes.
+ * Pure black ticker bar in BOTH themes (Bloomberg-terminal feel). Symbols
+ * render in FT blue; gainers green, losers red. Hidden if no quotes.
  */
 export function StockTicker(props: { quotes: StocksPayload }) {
   const entries = Object.entries(props.quotes);
   if (entries.length === 0) return null;
   return (
-    <div className="border-b border-[var(--color-line)] bg-[var(--color-surface)]">
+    <div className="ticker-bar">
       <div className="overflow-x-auto whitespace-nowrap px-2 py-1">
         {entries.map(([sym, q]) => {
           const up = q.change >= 0;
@@ -20,9 +19,9 @@ export function StockTicker(props: { quotes: StocksPayload }) {
               key={sym}
               className="mono text-[11px] inline-flex items-center gap-1 mr-4"
             >
-              <span className="text-[var(--color-muted)]">{sym}</span>
+              <span className="ticker-sym">{sym}</span>
               <span>${q.price.toFixed(2)}</span>
-              <span className={up ? "text-green-500" : "siren"}>
+              <span className={up ? "ticker-up" : "ticker-down"}>
                 {up ? "\u25B2" : "\u25BC"}
                 {Math.abs(q.changePct).toFixed(2)}%
               </span>

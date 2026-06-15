@@ -24,14 +24,14 @@ export function Header(props: {
   feedsOk: { ok: number; total: number };
 }) {
   return (
-    <header className="border-b-2 border-[var(--color-accent)]">
+    <header className="border-b-2 border-[var(--color-siren)]">
       <div className="flex items-end justify-between px-3 pt-3 pb-1">
         <button
-          className="text-left leading-none"
+          className="text-left masthead"
           onClick={() => props.setView("home")}
           title="Home"
         >
-          <div className="siren font-extrabold uppercase tracking-tight text-3xl md:text-4xl">
+          <div className="siren text-3xl md:text-4xl">
             CYBER<span className="text-[var(--color-fg)]"> DRUDGE</span>
           </div>
           <div className="text-[10px] mono uppercase text-[var(--color-muted)] tracking-widest mt-0.5">

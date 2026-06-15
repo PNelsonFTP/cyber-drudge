@@ -5,10 +5,21 @@ import { timeAgo } from "../lib/timeAgo";
 /**
  * src/components/Headline.tsx
  * ---------------------------
- * Single headline row. Bookmark (permanent) + queue (read-later) + source
- * badge + time-ago. On hover, reveals a "mute source" link and (optionally)
- * surfaces the hover-card via onHover.
+ * Single headline row. Visual tier comes from the article's `priority`:
+ *   critical -> red + bold   (`.headline-critical`)
+ *   high     -> bold         (`.headline-high`)
+ *   normal   -> regular      (`.headline-medium`)
+ * (low/opacity-0.85 tier reserved for muted/queued items)
+ *
+ * Source renders as an uppercase pill (`.source-badge`). If the article has
+ * related coverage, a blue "+N" pill appears next to the source.
  */
+const PRIORITY_CLASS: Record<Article["priority"], string> = {
+  critical: "headline-critical",
+  high: "headline-high",
+  normal: "headline-medium",
+};
+
 export function Headline(props: {
   article: Article | GroupedArticle;
   bookmarked: boolean;
@@ -21,7 +32,8 @@ export function Headline(props: {
 }) {
   const { article: a } = props;
   const [mutedHint, setMutedHint] = useState(false);
-  const priority = a.priority === "critical" ? "critical" : undefined;
+  const priorityClass = PRIORITY_CLASS[a.priority] ?? "headline-medium";
+  const relatedCount = "related" in a ? a.related.length : 0;
 
   return (
     <div
@@ -58,14 +70,17 @@ export function Headline(props: {
             href={a.url}
             target="_blank"
             rel="noopener noreferrer nofollow"
-            className="headline-link"
-            data-priority={priority}
+            className={priorityClass}
           >
             {a.title}
           </a>
+          {relatedCount > 0 && (
+            <span className="related-badge" title={`${relatedCount} more outlet${relatedCount === 1 ? "" : "s"} covering this`}>
+              +{relatedCount}
+            </span>
+          )}
           <div className="mt-0.5 flex items-center gap-2 text-[11px] mono text-[var(--color-muted)]">
-            <span>{a.source}</span>
-            <span>·</span>
+            <span className="source-badge">{a.source}</span>
             <span>{timeAgo(a.publishedAt)}</span>
             <button
               className="opacity-0 group-hover:opacity-100 underline-offset-2 hover:underline hover:siren"

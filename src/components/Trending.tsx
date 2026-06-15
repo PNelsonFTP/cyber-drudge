@@ -3,22 +3,20 @@ import type { TrendingStory } from "../lib/types";
 /**
  * src/components/Trending.tsx
  * ---------------------------
- * Red-bordered box at the top of the page. Each story shows its title,
- * primary source, and a badge with the number of distinct outlets covering
- * it. Ranked by outlet-count then recency.
+ * Top-of-page trending stories. Section heading uses the Drudge-style
+ * red underline; stories are ranked with a small "N src" related badge.
  */
 export function Trending(props: { stories: TrendingStory[] }) {
   if (props.stories.length === 0) return null;
   const top = props.stories.slice(0, 8);
   return (
     <section className="mb-6">
-      <header className="section-bar flex items-center gap-2 px-3 py-2 mb-2">
-        <span className="siren">{"\u25A0"}</span>
-        <h2 className="font-bold uppercase text-[13px] tracking-wider mono">
+      <header className="flex items-baseline gap-2 pb-1 mb-2 border-b-2 border-[var(--color-siren)]">
+        <h2 className="section-heading" style={{ borderBottom: "none", marginBottom: 0, paddingBottom: 0 }}>
           Trending
         </h2>
-        <span className="text-[10px] mono section-meta">
-          {props.stories.length} {props.stories.length === 1 ? "story" : "stories"}
+        <span className="text-[10px] mono text-[var(--color-muted)]">
+          {props.stories.length} {props.stories.length === 1 ? "story" : "stories"} · covered by 2+ outlets
         </span>
       </header>
       <ol className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 px-1">
@@ -32,11 +30,11 @@ export function Trending(props: { stories: TrendingStory[] }) {
                 href={s.primaryUrl}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
-                className="headline-link text-[13px]"
+                className={s.priority === "critical" ? "headline-critical" : "headline-high"}
               >
                 {s.title}
               </a>
-              <span className="ml-2 inline-block text-[10px] mono siren border border-[var(--color-accent)] px-1 py-px">
+              <span className="related-badge" title={`${s.sources.length} outlets covering this`}>
                 {s.sources.length} src
               </span>
             </div>

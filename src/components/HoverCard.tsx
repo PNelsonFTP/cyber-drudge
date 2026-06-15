@@ -41,7 +41,7 @@ export function HoverCard(props: {
 
   return (
     <div
-      className="fixed z-50 w-[360px] max-w-[92vw] bg-[var(--color-surface)] border border-[var(--color-line)] shadow-lg p-3"
+      className="hover-card p-3"
       style={{ top, left }}
       onMouseEnter={() => {
         if (hideTimer.current) {
@@ -57,7 +57,7 @@ export function HoverCard(props: {
       }}
     >
       <div className="text-[11px] mono text-[var(--color-muted)] flex items-center gap-2">
-        <span className="siren">{a.source}</span>
+        <span className="source-badge siren">{a.source}</span>
         <span>·</span>
         <span>{timeAgo(a.publishedAt)}</span>
         <span>·</span>

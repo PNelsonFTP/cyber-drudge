@@ -3,19 +3,19 @@ import type { DailyBrief } from "../lib/types";
 /**
  * src/components/DailyBrief.tsx
  * -----------------------------
- * Short summary block. If `source === "llm"` we credit the model; otherwise
- * the brief is curated from trending + lead + top of each category.
+ * Short summary block at the top of the page. Red-underline heading;
+ * `source === "llm"` is credited as "AI summary", otherwise "curated".
  */
 export function DailyBrief(props: { brief: DailyBrief | null }) {
   if (!props.brief) return null;
   const b = props.brief;
   return (
     <section className="mb-6">
-      <header className="section-bar flex items-center gap-2 px-3 py-2 mb-2">
-        <h2 className="font-bold uppercase text-[13px] tracking-wider mono">
+      <header className="flex items-baseline gap-2 pb-1 mb-2 border-b-2 border-[var(--color-siren)]">
+        <h2 className="section-heading" style={{ borderBottom: "none", marginBottom: 0, paddingBottom: 0 }}>
           Daily Brief
         </h2>
-        <span className="text-[10px] mono section-meta">
+        <span className="text-[10px] mono text-[var(--color-muted)]">
           {b.source === "llm" ? "AI summary" : "curated"}
         </span>
       </header>

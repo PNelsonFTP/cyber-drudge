@@ -252,8 +252,8 @@ function SingleColumnList(props: {
 }) {
   return (
     <section className="max-w-2xl mx-auto py-2">
-      <header className="section-bar flex items-center px-3 py-2 mb-4">
-        <h2 className="font-bold uppercase mono text-[13px] tracking-wider">
+      <header className="flex items-baseline gap-2 pb-1 mb-4 border-b-2 border-[var(--color-siren)]">
+        <h2 className="section-heading" style={{ borderBottom: "none", marginBottom: 0, paddingBottom: 0 }}>
           {props.title}
         </h2>
       </header>

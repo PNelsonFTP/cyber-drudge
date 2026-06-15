@@ -6,12 +6,12 @@ import type { Article, GroupedArticle } from "../lib/types";
 /**
  * src/components/CategoryColumn.tsx
  * --------------------------------
- * A category section. The header is a deep-navy bar (section-bar) with the
- * label, source count, "View all N", and a mute-category X. On mobile (<md)
- * collapses into a tap-to-expand accordion; always-expanded on desktop.
+ * A category section. Heading is minimal Drudge-style: the section label in
+ * navy (light) or muted-blue (dark) with a 2px red bottom border. Source count
+ * and mute/view-all controls sit on the heading row.
  *
- * Vertical spacing: each section has bottom margin so there's visible air
- * between consecutive sections.
+ * On mobile (<md) collapses into a tap-to-expand accordion; always-expanded
+ * on desktop. Each section has bottom margin for breathing room.
  */
 export function CategoryColumn(props: {
   bucket: CategoryBucket;
@@ -31,25 +31,25 @@ export function CategoryColumn(props: {
   const visible: GroupedArticle[] = showAll ? bucket.articlesAll : bucket.articles;
 
   return (
-    <section className="mb-5">
-      <header className="section-bar flex items-center gap-2 px-3 py-2">
+    <section className="mb-6">
+      <header className="flex items-baseline gap-2 pb-1 mb-2 border-b-2 border-[var(--color-siren)]">
         <button
-          className="md:hidden mono text-xs section-btn caret-toggle"
+          className="md:hidden mono text-xs text-[var(--color-muted)] caret-toggle"
           aria-label={expanded ? "Collapse section" : "Expand section"}
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? "\u25BE" : "\u25B8"}
         </button>
-        <h2 className="font-bold uppercase text-[13px] tracking-wider mono">
+        <h2 className="section-heading flex-shrink-0" style={{ borderBottom: "none", marginBottom: 0, paddingBottom: 0 }}>
           {bucket.label}
         </h2>
-        <span className="text-[10px] mono section-meta">
+        <span className="text-[10px] mono text-[var(--color-muted)]">
           {bucket.sourceCount} src
         </span>
         <div className="ml-auto flex items-center gap-3">
           {bucket.articlesAll.length > bucket.articles.length && (
             <button
-              className="text-[11px] mono section-btn hover:underline"
+              className="text-[11px] mono text-[var(--color-link)] hover:underline"
               onClick={() => setShowAll((v) => !v)}
             >
               {showAll
@@ -58,7 +58,7 @@ export function CategoryColumn(props: {
             </button>
           )}
           <button
-            className="text-[12px] mono section-btn"
+            className="text-[12px] mono text-[var(--color-muted)] hover:siren"
             title={`Mute ${bucket.label}`}
             onClick={() => props.onMuteCategory(bucket.id)}
           >

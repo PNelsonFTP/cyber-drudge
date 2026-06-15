@@ -5,7 +5,8 @@ import { timeAgo } from "../lib/timeAgo";
  * src/components/LeadStory.tsx
  * ----------------------------
  * Center column anchor: the biggest, most-covered story of the cycle.
- * Siren-red treatment; "Also covered by" links underneath.
+ * Title uses the `.lead-title` treatment (mono, 22px, tight tracking).
+ * Red-underline heading labels it as the LEAD STORY.
  */
 export function LeadStory(props: {
   lead: GroupedArticle | null;
@@ -14,20 +15,21 @@ export function LeadStory(props: {
   const ls = props.lead;
   return (
     <section className="mb-6">
-      <header className="section-bar flex items-center gap-2 px-3 py-2 mb-3">
+      <header className="flex items-baseline gap-2 pb-1 mb-3 border-b-2 border-[var(--color-siren)]">
         <span className="siren">{"\u25A0"}</span>
-        <h2 className="font-bold uppercase text-[13px] tracking-wider mono">
+        <h2 className="section-heading" style={{ borderBottom: "none", marginBottom: 0, paddingBottom: 0 }}>
           Lead Story
         </h2>
       </header>
       <div className="px-1">
-        <h3 className="text-xl md:text-2xl font-extrabold leading-tight siren">
+        <h3 className="lead-title siren">
           <a href={ls.url} target="_blank" rel="noopener noreferrer nofollow">
             {ls.title}
           </a>
         </h3>
-        <div className="mt-1 text-[11px] mono text-[var(--color-muted)]">
-          {ls.source} · {timeAgo(ls.publishedAt)}
+        <div className="mt-1 text-[11px] mono text-[var(--color-muted)] flex items-center gap-2">
+          <span className="source-badge">{ls.source}</span>
+          <span>{timeAgo(ls.publishedAt)}</span>
         </div>
         {ls.snippet && (
           <p className="mt-2 text-[13px] text-[var(--color-fg)] opacity-90">

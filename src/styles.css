@@ -6,48 +6,54 @@
 
 @theme {
   --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "SFMono-Regular", "Menlo", "Consolas", monospace;
+  --font-mono: "SFMono-Regular", "Menlo", "Consolas", "Liberation Mono", monospace;
 
-  /* Dark palette — deep navy (the FT dark blue, taken into a true dark mode).
-     Anchored on #013953 (FT's darkest navy) but desaturated for readability. */
+  /* Dark palette — deep navy. Anchored on FT's darkest navy #013953 but
+     desaturated for readability as a true dark mode. */
   --color-bg: #0b1a26;
   --color-surface: #122536;
   --color-surface-2: #182f45;
   --color-fg: #e6edf3;
   --color-muted: #8aa0b4;
   --color-line: #1f3850;
-  --color-accent: #cc0000;
-  --color-accent-hi: #ff1a1a;
-  --color-link: #5cb6ff;
 
-  /* Section header bar: deep navy with white text in both themes. */
-  --color-section-bg: #243B5A;
-  --color-section-fg: #ffffff;
-  --color-section-meta: #a8c0dc;
+  /* Brand accents (kept across themes):
+     - siren red: critical/breaking
+     - accent (FT deep blue): links + related badge
+     - gold (FT orange): secondary accent */
+  --color-siren: #e50b0b;
+  --color-siren-dim: #b00808;
+  --color-accent: #1d4ed8;            /* link blue (dark) */
+  --color-accent-hi: #ff1a1a;         /* hover/bright red */
+  --color-link: #5cb6ff;              /* link blue (dark) */
+  --color-gold: #f0902a;              /* FT orange */
+  --color-up: #22c55e;                /* ticker gainers */
+  --color-down: #e50b0b;              /* ticker losers */
 }
 
 :root {
   color-scheme: dark;
 }
 
-/* Light theme — based on ftportfolios.com.
-   Page bg white, body text near-black, headings navy #003366,
-   section header bar #243B5A (white text), links #00589F. */
+/* Light theme — FT Portfolios blue + warm paper-cream background (Drudge feel).
+   Page bg #f4f1ea, surface #fffdf7, headings navy #003366, links #00589F. */
 [data-theme="light"] {
   color-scheme: light;
-  --color-bg: #ffffff;
-  --color-surface: #f5f7fa;
-  --color-surface-2: #eef1f5;
-  --color-fg: #222222;
-  --color-muted: #666666;
-  --color-line: #d3d8de;
-  --color-accent: #b00000;
+  --color-bg: #f4f1ea;
+  --color-surface: #fffdf7;
+  --color-surface-2: #efece2;
+  --color-fg: #1a1a1a;
+  --color-muted: #6a6a6a;
+  --color-line: #c8bfa3;
+
+  --color-siren: #b00808;
+  --color-siren-dim: #8a0606;
+  --color-accent: #00589F;            /* FT link blue */
   --color-accent-hi: #d40000;
   --color-link: #00589F;
-
-  --color-section-bg: #243B5A;
-  --color-section-fg: #ffffff;
-  --color-section-meta: #c5d2e3;
+  --color-gold: #c4791c;              /* slightly darker orange for contrast on cream */
+  --color-up: #1f9d4a;
+  --color-down: #b00808;
 }
 
 html,
@@ -56,38 +62,61 @@ body {
   padding: 0;
   background: var(--color-bg);
   color: var(--color-fg);
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   font-size: 14px;
   line-height: 1.35;
   -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--color-fg);
+  color: inherit;
   text-decoration: none;
 }
 a:hover {
+  text-underline-offset: 2px;
   text-decoration: underline;
-  text-underline-offset: 1px;
 }
 
 ::selection {
-  background: var(--color-accent);
+  background: var(--color-siren);
   color: #fff;
 }
 
-/* Tight, dense headline list — Drudge-style */
+/* ----------------------------------------------------------------------------
+ * Headline priority tiers — critical / high / medium / low
+ * Maps directly to the build's `priority` field for visual hierarchy.
+ * -------------------------------------------------------------------------- */
+.headline-critical {
+  color: var(--color-siren);
+  font-weight: 700;
+}
+.headline-high {
+  color: var(--color-fg);
+  font-weight: 700;
+}
+.headline-medium {
+  color: var(--color-fg);
+  font-weight: 500;
+}
+.headline-low {
+  color: var(--color-fg);
+  opacity: 0.85;
+  font-weight: 400;
+}
+
+/* Legacy alias kept so existing markup keeps working. */
 .headline-link {
   display: inline;
   color: var(--color-fg);
   font-weight: 600;
 }
 .headline-link:hover {
-  color: var(--color-accent-hi);
+  color: var(--color-siren);
   text-decoration: underline;
 }
 .headline-link[data-priority="critical"] {
-  color: var(--color-accent-hi);
+  color: var(--color-siren);
+  font-weight: 700;
 }
 
 .mono {
@@ -95,25 +124,147 @@ a:hover {
 }
 
 .siren {
-  color: var(--color-accent-hi);
+  color: var(--color-siren);
 }
 
-/* Section header bar — deep navy band in both themes, like the FT site. */
-.section-bar {
-  background: var(--color-section-bg);
-  color: var(--color-section-fg);
-  border-left: 4px solid var(--color-accent);
-}
-.section-bar .section-meta {
-  color: var(--color-section-meta);
-}
-.section-bar .section-btn {
-  color: var(--color-section-fg);
+/* ----------------------------------------------------------------------------
+ * Source pill — small uppercase bordered badge next to each headline.
+ * -------------------------------------------------------------------------- */
+.source-badge {
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--color-line);
+  border-radius: 2px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
   opacity: 0.85;
 }
-.section-bar .section-btn:hover {
-  opacity: 1;
-  color: #ffffff;
+
+/* ----------------------------------------------------------------------------
+ * Related badge — blue pill showing "+N" related coverage on a headline.
+ * -------------------------------------------------------------------------- */
+.related-badge {
+  display: inline-block;
+  vertical-align: middle;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 8px;
+  margin-left: 4px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ----------------------------------------------------------------------------
+ * Section heading — minimal Drudge-style red underline.
+ * Heading text uses navy in light mode (FT), muted blue in dark mode.
+ * The filled navy bar is replaced by a 2px red bottom border.
+ * -------------------------------------------------------------------------- */
+.section-heading {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 13px;
+  font-weight: 800;
+  border-bottom: 2px solid var(--color-siren);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+[data-theme="light"] .section-heading,
+html.light .section-heading {
+  color: #003366;
+}
+
+/* ----------------------------------------------------------------------------
+ * Masthead — mono, tight negative tracking, weight 800, line-height 1
+ * (matches the AI-Drudge masthead treatment)
+ * -------------------------------------------------------------------------- */
+.masthead {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* ----------------------------------------------------------------------------
+ * Lead story title — slightly tighter tracking, mono, 22px.
+ * -------------------------------------------------------------------------- */
+.lead-title {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+/* ----------------------------------------------------------------------------
+ * Hover card — drop shadow + warm cream bg in light mode.
+ * -------------------------------------------------------------------------- */
+.hover-card {
+  position: fixed;
+  z-index: 50;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  border: 1px solid var(--color-line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+[data-theme="light"] .hover-card,
+html.light .hover-card {
+  background: #fffdf7;
+  border-color: #c8bfa3;
+}
+
+/* ----------------------------------------------------------------------------
+ * Stock ticker — pure black bar with colored arrows in BOTH themes.
+ * Symbols use FT blue, gainers green, losers red.
+ * -------------------------------------------------------------------------- */
+.ticker-bar {
+  background: #000;
+  color: #ddd;
+  border-top: 1px solid #222;
+  border-bottom: 1px solid #222;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.ticker-sym {
+  color: #6ea8ff;
+}
+.ticker-up {
+  color: var(--color-up);
+}
+.ticker-down {
+  color: var(--color-down);
+}
+.ticker-flat {
+  color: #999;
+}
+
+/* ----------------------------------------------------------------------------
+ * Custom scrollbars (dark mode) — adds polish to the SOC feel.
+ * -------------------------------------------------------------------------- */
+[data-theme="dark"] ::-webkit-scrollbar,
+html.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+[data-theme="dark"] ::-webkit-scrollbar-track,
+html.dark ::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb,
+html.dark ::-webkit-scrollbar-thumb {
+  background: #2a3a4a;
+  border-radius: 5px;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #3a4a5a;
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb,
+html.light ::-webkit-scrollbar-thumb {
+  background: #c8bfa3;
+  border-radius: 5px;
 }
 
 .col-rule {
