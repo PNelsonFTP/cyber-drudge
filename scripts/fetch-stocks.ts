@@ -4,9 +4,12 @@ import type { StocksPayload } from "./types";
 /**
  * scripts/fetch-stocks.ts
  * -----------------------
- * Pulls sector-relevant tickers from Stooq (free, no API key) with a Yahoo
- * Finance fallback. Any error is swallowed — the site ships an empty object
- * and the client silently hides the ticker bar.
+ * Pulls sector-relevant tickers from Yahoo Finance (free, no API key). Stooq
+ * was previously used as primary but its CSV endpoint became unreliable
+ * (404s on most US tickers), so Yahoo is now the sole source.
+ *
+ * Any error is swallowed — the site ships an empty object and the client
+ * silently hides the ticker bar.
  */
 
 const TIMEOUT_MS = 5000;
@@ -19,48 +22,72 @@ interface Quote {
 
 export async function fetchStocks(): Promise<StocksPayload> {
   const out: StocksPayload = {};
-  await Promise.all(STOCK_TICKERS.map((t) => pullOne(t, out)));
+  // Serial with a tiny delay to avoid Yahoo's per-IP rate limiter, which
+  // returns 429s when you fire 7 requests in parallel from one runner.
+  for (const sym of STOCK_TICKERS) {
+    try {
+      const q = await yahooQuote(sym);
+      if (q) out[sym] = { ...q, symbol: sym };
+    } catch {
+      // silent fail; ticker just won't appear
+    }
+    await sleep(250);
+  }
   return out;
 }
 
-async function pullOne(symbol: string, sink: StocksPayload): Promise<void> {
-  try {
-    const q = await stooqQuote(symbol);
-    if (q) {
-      sink[symbol] = { ...q, symbol };
-      return;
-    }
-  } catch {
-    // fall through to Yahoo
-  }
-  try {
-    const q = await yahooQuote(symbol);
-    if (q) sink[symbol] = { ...q, symbol };
-  } catch {
-    // silent fail
-  }
-}
-
-async function stooqQuote(symbol: string): Promise<Quote | null> {
-  // Stooq CSV endpoint: symbol.US e.g. CRWD.US
-  // Format string: s=symbol, d2=date, t2=time, o=open, h=high, l=low, c=close, v=vol
-  const url = `https://stooq.com/q/l/?s=${symbol.toLowerCase()}.us&f=sd2t2ohlcv&h&e=csv`;
+async function yahooQuote(symbol: string): Promise<Quote | null> {
+  // interval=1d&range=5d gives us a few days of closes so we always have a
+  // previous-close even if the API omits `chartPreviousClose`.
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    symbol
+  )}?interval=1d&range=5d`;
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "Mozilla/5.0 CyberDrudgeBot/1.0" },
+    });
+    if (res.status === 429) return null; // rate limited
     if (!res.ok) return null;
-    const text = await res.text();
-    const lines = text.trim().split("\n");
-    if (lines.length < 2) return null;
-    const cells = lines[1].split(",");
-    const open = parseFloat(cells[3]);
-    const close = parseFloat(cells[6]);
-    if (!Number.isFinite(close)) return null;
-    const ref = Number.isFinite(open) ? open : close;
-    const change = close - ref;
+    const json = (await res.json()) as {
+      chart?: {
+        result?: Array<{
+          meta?: {
+            regularMarketPrice?: number;
+            chartPreviousClose?: number;
+            previousClose?: number;
+            regularMarketVolume?: number;
+          };
+          indicators?: {
+            quote?: Array<{ close?: (number | null)[] }>;
+          };
+        }>;
+      };
+    };
+    const result = json.chart?.result?.[0];
+    const meta = result?.meta;
+    if (!meta || typeof meta.regularMarketPrice !== "number") return null;
+
+    const price = meta.regularMarketPrice;
+
+    // Find a valid reference (previous close) from one of several fields.
+    // chartPreviousClose is the most reliable; `previousClose` is sometimes
+    // missing; the last bar before the current one in `indicators.quote` is
+    // the fallback.
+    const closes = result?.indicators?.quote?.[0]?.close ?? [];
+    const lastBarIdx = closes.length - 1;
+    const priorBar =
+      lastBarIdx >= 0 ? closes[lastBarIdx] : null;
+    const ref =
+      meta.chartPreviousClose ??
+      meta.previousClose ??
+      (typeof priorBar === "number" ? priorBar : price);
+
+    const change = price - ref;
     return {
-      price: close,
+      price,
       change,
       changePct: ref !== 0 ? (change / ref) * 100 : 0,
     };
@@ -69,26 +96,6 @@ async function stooqQuote(symbol: string): Promise<Quote | null> {
   }
 }
 
-async function yahooQuote(symbol: string): Promise<Quote | null> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": "Mozilla/5.0 CyberDrudgeBot/1.0" },
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      chart?: { result?: Array<{ meta?: { regularMarketPrice?: number; previousClose?: number } }> };
-    };
-    const meta = json.chart?.result?.[0]?.meta;
-    if (!meta || typeof meta.regularMarketPrice !== "number") return null;
-    const price = meta.regularMarketPrice;
-    const prev = meta.previousClose ?? price;
-    const change = price - prev;
-    return { price, change, changePct: prev !== 0 ? (change / prev) * 100 : 0 };
-  } finally {
-    clearTimeout(t);
-  }
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }

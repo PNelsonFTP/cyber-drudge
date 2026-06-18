@@ -6,6 +6,11 @@ import type { Article, GroupedArticle } from "../types";
  * Cluster articles that are covering the same story, using Jaccard similarity
  * on title token sets. Threshold >= 0.4 was tuned on real news data to catch
  * "Two outlets covered the same CVE" without merging unrelated posts.
+ *
+ * Cluster primary selection uses the same priority*recency-decay score as the
+ * router (see scripts/lib/router.ts), so the most operationally-relevant
+ * version of a story is the one shown — not just the oldest critical-tagged
+ * one.
  */
 
 const STOP = new Set([
@@ -34,14 +39,37 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 
 const THRESHOLD = 0.4;
 
+// ---- Score (kept in sync with scripts/lib/router.ts) ----------------------
+
+const PRIORITY_HALF_LIFE_HOURS = 72;
+
+function clampPublishedAt(t: number): number {
+  const now = Date.now();
+  return t > now ? now : t;
+}
+
+function priorityRank(p: Article["priority"]): number {
+  return p === "critical" ? 3 : p === "high" ? 2 : 1;
+}
+
+function articleScore(a: Article): number {
+  const h = Math.max(0, (Date.now() - clampPublishedAt(a.publishedAt)) / 3_600_000);
+  const rec = Math.pow(0.5, h / PRIORITY_HALF_LIFE_HOURS);
+  return priorityRank(a.priority) * rec;
+}
+
+function byScore(a: Article, b: Article): number {
+  const d = articleScore(b) - articleScore(a);
+  if (d !== 0) return d;
+  return clampPublishedAt(b.publishedAt) - clampPublishedAt(a.publishedAt);
+}
+
 /**
  * Group articles by story. Each input appears in exactly one output cluster;
- * the first (highest-priority, most-recent) item is the cluster's primary.
- * Input MUST already be sorted in priority+recency order so that primary is
- * the most-important member.
+ * the first (highest-scoring) item is the cluster's primary.
  */
 export function groupStories(articles: Article[]): GroupedArticle[] {
-  const sorted = [...articles].sort(byPriorityThenRecency);
+  const sorted = [...articles].sort(byScore);
   const used = new Set<number>();
   const out: GroupedArticle[] = [];
 
@@ -66,16 +94,6 @@ export function groupStories(articles: Article[]): GroupedArticle[] {
   }
 
   return out;
-}
-
-function byPriorityThenRecency(a: Article, b: Article): number {
-  const p = priorityRank(b.priority) - priorityRank(a.priority);
-  if (p !== 0) return p;
-  return b.publishedAt - a.publishedAt;
-}
-
-function priorityRank(p: Article["priority"]): number {
-  return p === "critical" ? 3 : p === "high" ? 2 : 1;
 }
 
 /** Cross-cluster similarity check used to compute the Trending section. */
