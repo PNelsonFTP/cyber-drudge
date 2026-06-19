@@ -1,12 +1,26 @@
 # CYBER DRUDGE
 
-A Drudge-Report-style cybersecurity news aggregator. Three dense columns, red masthead, monospace accents, dark mode by default — covering breaking threats, vulnerabilities, threat intel, breaches, malware analysis, IR, policy, vendor news, and more.
+A Drudge-Report-style cybersecurity news aggregator. Three dense columns, FT blue/orange palette, monospace masthead, light/dark/system themes — covering breaking threats, vulnerabilities, threat intel, breaches, malware analysis, IR, policy, vendor news, and more.
 
-Headlines are fetched at **build time** by a GitHub Actions hourly cron job and written to a single `public/data/headlines.json`. The deployed site is a pure static SPA — no live RSS scraping in the request path.
+**Live site:** https://pnelsonftp.github.io/cyber-drudge/
+
+Headlines are fetched at **build time** by a GitHub Actions hourly cron job and written to `public/data/*.json`. The deployed site is a pure static SPA — no live RSS scraping in the request path.
+
+## Documentation
+
+Full technical documentation lives in [`docs/`](./docs/README.md):
+
+| Document | Description |
+| -------- | ----------- |
+| [Architecture](./docs/ARCHITECTURE.md) | System design, data flow, ranking, deployment |
+| [SBOM](./docs/SBOM.md) | Software Bill of Materials |
+| [Handoff](./docs/HANDOFF.md) | Operations runbook for maintainers |
+| [Future improvements](./docs/FUTURE-IMPROVEMENTS.md) | Next upgrade cycle backlog |
+| [Changelog](./docs/CHANGELOG.md) | Release and change history |
 
 ## Stack
 
-- Vite 6 + React 19 + TypeScript 5.8
+- Vite 6 + React 19 + TypeScript 5.9
 - Tailwind v4 (via `@tailwindcss/vite`)
 - `fast-xml-parser` (build-time only — never bundled)
 - `tsx` for build scripts
@@ -82,7 +96,7 @@ Sources listed in `KEYWORD_AGNOSTIC_SOURCES` (e.g. `r/netsec`, `r/cybersecurity`
 ## Quality bar
 
 - `npm run typecheck` exits 0.
-- `npm run build` produces a `dist/` under ~250KB gzipped (excluding JSON).
+- `npm run build` produces a `dist/` under ~72KB gzipped JS+CSS (excluding JSON).
 - `npm run build:data` produces a `headlines.json` with zero HTML entities in any title.
 - Every section has at least 2 distinct sources; every source is capped at 6 items globally.
 
