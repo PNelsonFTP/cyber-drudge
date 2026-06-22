@@ -102,4 +102,6 @@ Ten visual/interaction alignments with [AI-Drudge](https://pnelsonftp.github.io/
 
 ## [Unreleased]
 
-See [FUTURE-IMPROVEMENTS.md](./FUTURE-IMPROVEMENTS.md) for planned work.
+- Added [UPGRADE-PLAN.md](./UPGRADE-PLAN.md): a build-ready implementation plan for the next cycle — per-category freshness windows, shorter recency half-life, starvation-aware fill, importance/CISA-KEV scoring, and a source-quality overhaul (prune 7 dead feeds, add 16 live-validated sources, fix the SECURITY TOOLS feeds). Intended for a follow-up build agent.
+
+See [FUTURE-IMPROVEMENTS.md](./FUTURE-IMPROVEMENTS.md) for the broader backlog.

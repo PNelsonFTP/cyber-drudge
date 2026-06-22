@@ -7,6 +7,7 @@ This folder contains the full technical documentation for the Cyber Drudge proje
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, data flow, ranking algorithm, UI architecture |
 | [SBOM.md](./SBOM.md) | Software Bill of Materials (direct + transitive dependencies) |
 | [HANDOFF.md](./HANDOFF.md) | Operations handoff: deploy, maintain, troubleshoot, extend |
+| [UPGRADE-PLAN.md](./UPGRADE-PLAN.md) | **Build-ready** implementation plan: freshness ranking, importance/KEV scoring, source-quality overhaul |
 | [FUTURE-IMPROVEMENTS.md](./FUTURE-IMPROVEMENTS.md) | Prioritized backlog for the next upgrade cycle |
 | [CHANGELOG.md](./CHANGELOG.md) | Build history and notable changes since initial release |
 
