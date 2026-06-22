@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "build:data": "tsx scripts/build-data.ts",
+    "build:check": "tsx scripts/check-data.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

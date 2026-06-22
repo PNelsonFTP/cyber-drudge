@@ -34,6 +34,11 @@ export function Trending(props: { stories: TrendingStory[] }) {
               >
                 {s.title}
               </a>
+              {s.kev && (
+                <span className="kev-badge" title="References a CISA Known Exploited Vulnerability">
+                  KEV
+                </span>
+              )}
               <span className="related-badge" title={`${s.sources.length} outlets covering this`}>
                 {s.sources.length} src
               </span>

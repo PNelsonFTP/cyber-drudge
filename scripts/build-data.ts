@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { fetchFeeds } from "./fetch-feeds";
 import { scrapeSources } from "./scrape-sources";
 import { fetchStocks } from "./fetch-stocks";
+import { fetchKevSet } from "./fetch-kev";
 import { generateBrief } from "./generate-brief";
 import { routeAll } from "./lib/router";
 import type { CategoryBucket, FeedStat, HeadlinesPayload } from "./types";
@@ -31,14 +32,17 @@ const BRIEF_PATH = path.join(DATA_DIR, "brief.json");
 async function main(): Promise<void> {
   await mkdir(DATA_DIR, { recursive: true });
 
-  console.log("[build:data] fetching feeds + scraping in parallel...");
-  const [{ articles: feedArticles, stats: feedStats }, { articles: scraped, stats: scrapeStats }] =
-    await Promise.all([fetchFeeds(), scrapeSources()]);
+  console.log("[build:data] fetching feeds + scraping + KEV in parallel...");
+  const [
+    { articles: feedArticles, stats: feedStats },
+    { articles: scraped, stats: scrapeStats },
+    kevSet,
+  ] = await Promise.all([fetchFeeds(), scrapeSources(), fetchKevSet()]);
 
   const stats: FeedStat[] = [...feedStats, ...scrapeStats];
   const allArticles = [...feedArticles, ...scraped];
   console.log(
-    `[build:data] fetched ${allArticles.length} articles from ${stats.filter((s) => s.ok).length}/${stats.length} sources`
+    `[build:data] fetched ${allArticles.length} articles from ${stats.filter((s) => s.ok).length}/${stats.length} sources; KEV=${kevSet.size}`
   );
 
   if (allArticles.length === 0) {
@@ -46,7 +50,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { categories, trending, leadStory } = routeAll(allArticles);
+  const { categories, trending, leadStory } = routeAll(allArticles, kevSet);
 
   // Drop empty categories so the UI doesn't render dead columns.
   const nonEmpty: CategoryBucket[] = categories.filter((c) => c.articles.length > 0);

@@ -11,6 +11,8 @@ export interface Article {
   publishedAt: number; // ms epoch, best-effort
   snippet?: string;
   priority: Priority;
+  /** True when a referenced CVE appears in CISA's KEV catalog. */
+  kev?: boolean;
 }
 
 export interface GroupedArticle extends Article {
@@ -26,6 +28,7 @@ export interface TrendingStory {
   publishedAt: number;
   sources: string[];
   priority: Priority;
+  kev?: boolean;
 }
 
 export interface CategoryBucket {

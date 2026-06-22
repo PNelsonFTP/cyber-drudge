@@ -1,4 +1,5 @@
 import type { ThemeChoice } from "../hooks/useTheme";
+import { timeAgo } from "../lib/timeAgo";
 
 /**
  * src/components/Header.tsx
@@ -37,7 +38,7 @@ export function Header(props: {
           <div className="text-[10px] mono uppercase text-[var(--color-muted)] tracking-widest mt-0.5">
             cybersecurity, drudge-style ·{" "}
             {props.generatedAt
-              ? new Date(props.generatedAt).toUTCString().slice(0, 22) + " UTC"
+              ? `updated ${timeAgo(props.generatedAt)}`
               : "loading"}
           </div>
         </button>

@@ -102,6 +102,41 @@ Ten visual/interaction alignments with [AI-Drudge](https://pnelsonftp.github.io/
 
 ## [Unreleased]
 
+### Implemented — Freshness, importance, and source-quality upgrade (2026-06-22)
+
+Built the full plan in [`UPGRADE-PLAN.md`](./UPGRADE-PLAN.md).
+
+**Freshness (Phase 1):**
+- Recency half-life shortened 72h → 48h.
+- Per-category age windows replace the single 14-day cap (fast lanes 5d hard / 2d soft; standard 10d/4d; slow 14d/7d).
+- Starvation-aware visible fill: only backfills stale items when a section would drop below `MIN_VISIBLE = 4`.
+- Trending freshness gate (≤72h) and lead-story freshness gate (≤96h).
+
+**Importance (Phase 2):**
+- Shared `scripts/lib/score.ts` — single source of truth (eliminates the duplicate scorer in router/groupStories).
+- Keyword importance boosts: actively-exploited, zero-day, CVSS 9–10, ransomware, mass-record breaches, etc. (recency-gated, capped at 2.5).
+- CISA KEV integration (`scripts/fetch-kev.ts`): articles referencing a KEV CVE are flagged `kev`, boosted, and may have display priority elevated to critical/high.
+
+**Sources (Phase 3):**
+- Pruned 7 dead/empty feeds (PortSwigger Daily Swig discontinued, Mandiant, Trend Micro, HackerOne, SC Media, trickest, r/AskNetsec).
+- Repointed Google Project Zero to verified working feed.
+- Added 16 live-validated feeds (SANS ISC, Risky Business, Securityaffairs, Securelist, Malwarebytes, watchTowr, ZDI blog + advisories, Google Online Security, JFrog, AWS Security, Sysdig, Cloudflare, HIBP, ProjectDiscovery blog, The DFIR Report).
+- Fixed SECURITY TOOLS: `github-release` feed type synthesizes meaningful titles so the noise filter doesn't strip them.
+- Parser hardening: rejects HTML bodies before XML parsing (root cause of "Maximum nested tags exceeded" and silent EMPTY results).
+
+**UI (Phase 4):**
+- NEW badge (<6h), KEV badge (CISA actively exploited), opacity de-emphasis (>72h).
+- Masthead shows "updated Xm ago"; Lead Story shows full UTC timestamp.
+- KEV badges on Trending and Lead Story.
+
+**Guardrails (Phase 5):**
+- `scripts/check-data.ts` + `npm run build:check` — feed health, per-category freshness/diversity, entity-leak scan, per-source cap. Warn by default, `--strict` to fail.
+- CI: `npm run typecheck` and `npm run build:check` added to `.github/workflows/refresh.yml`.
+
+**Validation:** `tsc --noEmit` green; production bundle 67.5 KB gzipped (flat). Router logic verified offline against existing data — new lead is a fresh CISA KEV story (was a stale 17h-old article); trending now freshness-gated. Live `build:data` runs on the GitHub Actions runner (network calls blocked in some local sandboxes).
+
+---
+
 - Added [UPGRADE-PLAN.md](./UPGRADE-PLAN.md): a build-ready implementation plan for the next cycle — per-category freshness windows, shorter recency half-life, starvation-aware fill, importance/CISA-KEV scoring, and a source-quality overhaul (prune 7 dead feeds, add 16 live-validated sources, fix the SECURITY TOOLS feeds). Intended for a follow-up build agent.
 
 See [FUTURE-IMPROVEMENTS.md](./FUTURE-IMPROVEMENTS.md) for the broader backlog.

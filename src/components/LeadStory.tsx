@@ -1,5 +1,5 @@
 import type { GroupedArticle } from "../lib/types";
-import { timeAgo } from "../lib/timeAgo";
+import { fullStamp, timeAgo } from "../lib/timeAgo";
 
 /**
  * src/components/LeadStory.tsx
@@ -13,6 +13,7 @@ export function LeadStory(props: {
 }) {
   if (!props.lead) return null;
   const ls = props.lead;
+  const isKev = ls.kev === true;
   return (
     <section className="mb-6">
       <header className="flex items-baseline gap-2 pb-1 mb-3 border-b-2 border-[var(--color-siren)]">
@@ -27,9 +28,11 @@ export function LeadStory(props: {
             {ls.title}
           </a>
         </h3>
-        <div className="mt-1 text-[11px] mono text-[var(--color-muted)] flex items-center gap-2">
+        <div className="mt-1 text-[11px] mono text-[var(--color-muted)] flex items-center gap-2 flex-wrap">
           <span className="source-badge">{ls.source}</span>
           <span>{timeAgo(ls.publishedAt)}</span>
+          <span className="opacity-70">({fullStamp(ls.publishedAt)})</span>
+          {isKev && <span className="kev-badge">KEV</span>}
         </div>
         {ls.snippet && (
           <p className="mt-2 text-[13px] text-[var(--color-fg)] opacity-90">

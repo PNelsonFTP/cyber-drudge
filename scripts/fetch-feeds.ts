@@ -97,15 +97,34 @@ async function fetchOne(feed: (typeof FEEDS)[number]): Promise<{
     return { articles: [], stat: { name: feed.name, ok: false, count: 0, error: lastErr } };
   }
 
+  // Parser hardening: never feed HTML (Cloudflare interstitials, login walls,
+  // 404 pages) to the XML parser. This is the root cause of "Maximum nested
+  // tags exceeded" and several silent EMPTY results.
+  const leading = body.slice(0, 512).trimStart().slice(0, 100);
+  if (!/^<\?xml|<rss|<feed/i.test(leading)) {
+    return {
+      articles: [],
+      stat: { name: feed.name, ok: false, count: 0, error: "non-XML body (HTML/wall)" },
+    };
+  }
+
   try {
     const parsed = xmlParser.parse(body);
     const items = extractItems(parsed);
     const articles: Article[] = [];
+    const isGitHubRelease = feed.type === "github-release";
     for (const item of items.slice(0, cap)) {
       const rawTitle = str(item.title);
-      const title = decodeEntities(stripHtml(rawTitle)).trim();
+      let title = decodeEntities(stripHtml(rawTitle)).trim();
       if (!title) continue;
-      if (isReleaseNoise(title)) continue;
+      if (isGitHubRelease) {
+        // Synthesize a meaningful title so the release-noise filter doesn't
+        // strip pure version tags (e.g. "v3.2.1" -> "nuclei v3.2.1 released").
+        const repo = feed.name.split("/").pop() ?? feed.name;
+        title = `${repo} ${title.replace(/^release\s+/i, "")} released`.trim();
+      } else if (isReleaseNoise(title)) {
+        continue;
+      }
       const link = pickLink(item.link);
       if (!link) continue;
       const snippetRaw = str(item.summary ?? item.description ?? item.content);

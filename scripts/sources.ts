@@ -6,10 +6,18 @@
  *
  * Adding a feed:
  *   { name: "My Source", url: "https://example.com/feed.xml", category: "threat_intelligence", priority: "high" }
+ *   // For GitHub release feeds, add type: "github-release" so titles are
+ *   // synthesized ("nuclei v3.2 released") instead of dropped by the
+ *   // release-noise filter.
  *
  * Categories are stable string IDs (see CATEGORIES below). Each feed lives in
  * one "home" category; the keyword router can also fan an article out to other
  * categories based on title+summary text matches.
+ *
+ * Category freshness windows (softAgeHours / maxAgeHours) control how long
+ * items stay visible: within softAgeHours = always shown; between soft and
+ * max = only backfill when a section would otherwise drop below MIN_VISIBLE
+ * (see scripts/lib/router.ts); beyond max = dropped.
  */
 
 export type CategoryId =
@@ -41,6 +49,9 @@ export interface FeedDef {
   priority?: Priority;
   /** Override per-feed item cap (default 15). */
   maxItems?: number;
+  /** Feed shape. "github-release" synthesizes meaningful titles so the
+   *  release-noise filter doesn't strip pure version tags. */
+  type?: "rss" | "github-release";
 }
 
 export interface CategoryDef {
@@ -48,6 +59,11 @@ export interface CategoryDef {
   label: string;
   /** Optional column grouping for display (left/center/right). */
   column?: "left" | "center" | "right";
+  /** Items older than this are dropped from this category (hours). */
+  maxAgeHours?: number;
+  /** Preferred freshness window; older items only backfill if the section
+   *  would otherwise drop below MIN_VISIBLE. */
+  softAgeHours?: number;
 }
 
 export interface KeywordRule {
@@ -56,24 +72,29 @@ export interface KeywordRule {
 }
 
 export const CATEGORIES: CategoryDef[] = [
-  { id: "breaking_threats",    label: "BREAKING THREATS",     column: "left" },
-  { id: "vulnerabilities",     label: "VULNERABILITIES",      column: "left" },
-  { id: "malware_analysis",    label: "MALWARE ANALYSIS",     column: "left" },
-  { id: "threat_intelligence", label: "THREAT INTELLIGENCE",  column: "left" },
-  { id: "data_breaches",       label: "DATA BREACHES",        column: "center" },
-  { id: "phishing_fraud",      label: "PHISHING & FRAUD",     column: "center" },
-  { id: "cloud_security",      label: "CLOUD SECURITY",       column: "center" },
-  { id: "network_endpoint",    label: "NETWORK & ENDPOINT",   column: "center" },
-  { id: "identity_access",     label: "IDENTITY & ACCESS",    column: "center" },
-  { id: "ai_security",         label: "AI SECURITY",          column: "center" },
-  { id: "crypto_pqc",          label: "CRYPTO & PQC",         column: "center" },
-  { id: "ics_ot",              label: "ICS/OT SECURITY",      column: "center" },
-  { id: "policy_regulation",   label: "POLICY & REGULATION",  column: "right" },
-  { id: "vendor_product",      label: "VENDOR & PRODUCT NEWS",column: "right" },
-  { id: "incident_response",   label: "INCIDENT RESPONSE",    column: "right" },
-  { id: "bug_bounty_research", label: "BUG BOUNTY & RESEARCH",column: "right" },
-  { id: "security_tools",      label: "SECURITY TOOLS",       column: "right" },
-  { id: "offense_red_team",    label: "OFFENSE / RED TEAM",   column: "right" },
+  // Fast lanes — operational, 5-day hard cap, 2-day preferred window.
+  { id: "breaking_threats",    label: "BREAKING THREATS",     column: "left",   softAgeHours: 48,  maxAgeHours: 120 },
+  { id: "incident_response",   label: "INCIDENT RESPONSE",    column: "right",  softAgeHours: 48,  maxAgeHours: 120 },
+  { id: "phishing_fraud",      label: "PHISHING & FRAUD",     column: "center", softAgeHours: 48,  maxAgeHours: 120 },
+
+  // Standard lanes — 10-day hard cap, 4-day preferred window.
+  { id: "vulnerabilities",     label: "VULNERABILITIES",      column: "left",   softAgeHours: 96,  maxAgeHours: 240 },
+  { id: "malware_analysis",    label: "MALWARE ANALYSIS",     column: "left",   softAgeHours: 96,  maxAgeHours: 240 },
+  { id: "threat_intelligence", label: "THREAT INTELLIGENCE",  column: "left",   softAgeHours: 96,  maxAgeHours: 240 },
+  { id: "data_breaches",       label: "DATA BREACHES",        column: "center", softAgeHours: 96,  maxAgeHours: 240 },
+  { id: "cloud_security",      label: "CLOUD SECURITY",       column: "center", softAgeHours: 96,  maxAgeHours: 240 },
+  { id: "network_endpoint",    label: "NETWORK & ENDPOINT",   column: "center", softAgeHours: 96,  maxAgeHours: 240 },
+  { id: "identity_access",     label: "IDENTITY & ACCESS",    column: "center", softAgeHours: 96,  maxAgeHours: 240 },
+  { id: "ai_security",         label: "AI SECURITY",          column: "center", softAgeHours: 96,  maxAgeHours: 240 },
+  { id: "ics_ot",              label: "ICS/OT SECURITY",      column: "center", softAgeHours: 96,  maxAgeHours: 240 },
+  { id: "offense_red_team",    label: "OFFENSE / RED TEAM",   column: "right",  softAgeHours: 96,  maxAgeHours: 240 },
+
+  // Slow lanes — 14-day hard cap, 7-day preferred window.
+  { id: "policy_regulation",   label: "POLICY & REGULATION",  column: "right",  softAgeHours: 168, maxAgeHours: 336 },
+  { id: "vendor_product",      label: "VENDOR & PRODUCT NEWS",column: "right",  softAgeHours: 168, maxAgeHours: 336 },
+  { id: "bug_bounty_research", label: "BUG BOUNTY & RESEARCH",column: "right",  softAgeHours: 168, maxAgeHours: 336 },
+  { id: "security_tools",      label: "SECURITY TOOLS",       column: "right",  softAgeHours: 168, maxAgeHours: 336 },
+  { id: "crypto_pqc",          label: "CRYPTO & PQC",         column: "center", softAgeHours: 168, maxAgeHours: 336 },
 ];
 
 /**
@@ -95,19 +116,20 @@ export const FEEDS: FeedDef[] = [
   { name: "Krebs on Security",     url: "https://krebsonsecurity.com/feed/",                                  category: "threat_intelligence", priority: "critical" },
   { name: "SecurityWeek",          url: "https://www.securityweek.com/feed/",                                 category: "breaking_threats",    priority: "high" },
   { name: "CyberScoop",            url: "https://www.cyberscoop.com/feed/",                                   category: "policy_regulation",   priority: "normal" },
-  { name: "SC Media",              url: "https://www.scmagazine.com/feed",                                    category: "breaking_threats",    priority: "normal" },
   { name: "Graham Cluley",         url: "https://grahamcluley.com/feed/",                                     category: "breaking_threats",    priority: "normal" },
+  { name: "Securityaffairs",       url: "https://securityaffairs.com/feed",                                   category: "breaking_threats",    priority: "normal" },
+  { name: "Risky Business News",   url: "https://risky.biz/feeds/risky-business-news/",                       category: "breaking_threats",    priority: "normal", maxItems: 8 },
 
   // Vendor research blogs (RSS-capable)
-  { name: "Google Project Zero",   url: "https://googleprojectzero.blogspot.com/feeds/posts/default",        category: "vulnerabilities",     priority: "critical" },
+  { name: "Google Project Zero",   url: "https://googleprojectzero.blogspot.com/feeds/posts/default?alt=rss", category: "vulnerabilities",    priority: "critical" },
   { name: "Talos",                 url: "https://blog.talosintelligence.com/rss/",                            category: "malware_analysis",    priority: "high" },
   { name: "Palo Alto Unit 42",     url: "https://unit42.paloaltonetworks.com/feed/",                          category: "threat_intelligence", priority: "high" },
-  { name: "Mandiant",              url: "https://www.mandiant.com/resources/blog/rss.xml",                    category: "threat_intelligence", priority: "high" },
   { name: "Microsoft Security",    url: "https://www.microsoft.com/en-us/security/blog/feed/",                category: "threat_intelligence", priority: "high" },
   { name: "SentinelOne",           url: "https://www.sentinelone.com/feed/",                                  category: "malware_analysis",    priority: "high" },
   { name: "ESET WeLiveSecurity",   url: "https://www.welivesecurity.com/feed/",                               category: "malware_analysis",    priority: "normal" },
-  { name: "Trend Micro Research",  url: "https://blog.trendmicro.com/feed/",                                  category: "malware_analysis",    priority: "normal" },
   { name: "Sophos News",           url: "https://news.sophos.com/feed",                                       category: "malware_analysis",    priority: "normal" },
+  { name: "Securelist",            url: "https://securelist.com/feed/",                                       category: "malware_analysis",    priority: "high" },
+  { name: "Malwarebytes Labs",     url: "https://www.malwarebytes.com/blog/feed/index.xml",                   category: "malware_analysis",    priority: "normal" },
   { name: "Rapid7",                url: "https://blog.rapid7.com/rss/",                                       category: "vulnerabilities",     priority: "normal" },
   { name: "Check Point Research",  url: "https://research.checkpoint.com/feed/",                              category: "threat_intelligence", priority: "normal" },
   { name: "Huntress",              url: "https://www.huntress.com/blog/rss.xml",                              category: "incident_response",   priority: "normal" },
@@ -115,38 +137,45 @@ export const FEEDS: FeedDef[] = [
   { name: "Trail of Bits",         url: "https://blog.trailofbits.com/feed/",                                 category: "bug_bounty_research", priority: "normal" },
   { name: "Tenable",               url: "https://www.tenable.com/blog/feed",                                  category: "vulnerabilities",     priority: "normal" },
   { name: "Qualys",                url: "https://blog.qualys.com/feed/",                                      category: "vulnerabilities",     priority: "normal" },
-  { name: "HackerOne",             url: "https://www.hackerone.com/blog.rss",                                 category: "bug_bounty_research", priority: "normal" },
-  { name: "PortSwigger Daily Swig",url: "https://portswigger.net/daily-swig/rss",                             category: "bug_bounty_research", priority: "normal" },
+  { name: "PortSwigger Research",  url: "https://portswigger.net/research/rss",                               category: "bug_bounty_research", priority: "high" },
+  { name: "watchTowr Labs",        url: "https://labs.watchtowr.com/rss/",                                    category: "vulnerabilities",     priority: "high" },
+  { name: "Zero Day Initiative",   url: "https://www.zerodayinitiative.com/blog?format=rss",                  category: "bug_bounty_research", priority: "high" },
+  { name: "ZDI Advisories",        url: "https://www.zerodayinitiative.com/rss/published/",                   category: "vulnerabilities",     priority: "high", maxItems: 8 },
+  { name: "Google Online Security",url: "https://security.googleblog.com/feeds/posts/default",                category: "vulnerabilities",     priority: "high" },
+  { name: "JFrog Security",        url: "https://jfrog.com/blog/feed/",                                       category: "vulnerabilities",     priority: "normal" },
+  { name: "AWS Security Blog",     url: "https://aws.amazon.com/blogs/security/feed/",                        category: "cloud_security",      priority: "normal" },
+  { name: "Sysdig",                url: "https://sysdig.com/feed/",                                           category: "cloud_security",      priority: "normal", maxItems: 8 },
+  { name: "Cloudflare Blog",       url: "https://blog.cloudflare.com/rss/",                                   category: "cloud_security",      priority: "normal" },
+  { name: "Have I Been Pwned",     url: "https://feeds.feedburner.com/HaveIBeenPwnedLatestBreaches",          category: "data_breaches",       priority: "high" },
 
   // Individual / Substack
   { name: "Schneier on Security",  url: "https://www.schneier.com/feed/",                                     category: "policy_regulation",   priority: "high" },
   { name: "Troy Hunt",             url: "https://www.troyhunt.com/rss/",                                      category: "data_breaches",       priority: "high" },
   { name: "Daniel Miessler",       url: "https://danielmiessler.com/feed/",                                   category: "ai_security",         priority: "normal" },
-  { name: "PortSwigger Research",  url: "https://portswigger.net/research/rss",                               category: "bug_bounty_research", priority: "high" },
   { name: "r/netsec",              url: "https://www.reddit.com/r/netsec.rss",                                category: "bug_bounty_research", priority: "normal" },
   { name: "r/cybersecurity",       url: "https://www.reddit.com/r/cybersecurity.rss",                        category: "breaking_threats",    priority: "normal" },
-  { name: "r/AskNetsec",           url: "https://www.reddit.com/r/asknetsec.rss",                            category: "incident_response",   priority: "normal" },
 
   // Government / org
   { name: "CISA Advisories",       url: "https://www.cisa.gov/cybersecurity-advisories/all.xml",             category: "policy_regulation",   priority: "high" },
   { name: "MSRC",                  url: "https://api.msrc.microsoft.com/update-guide/rss",                    category: "vulnerabilities",     priority: "high" },
   { name: "CERT-EU",               url: "https://cert.europa.eu/publications/security-advisories-rss",       category: "policy_regulation",   priority: "normal" },
   { name: "NCSC UK",               url: "https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml",        category: "policy_regulation",   priority: "normal" },
+  { name: "SANS ISC",              url: "https://isc.sans.edu/rssfeed_full.xml",                             category: "threat_intelligence", priority: "high" },
 
-  // Security tools — GitHub release feeds (active recon / pentest)
-  { name: "trickest/collection",          url: "https://github.com/trickest/collection/releases.atom",             category: "security_tools", priority: "normal" },
-  { name: "projectdiscovery/nuclei",      url: "https://github.com/projectdiscovery/nuclei/releases.atom",        category: "security_tools", priority: "normal" },
-  { name: "ffuf/ffuf",                    url: "https://github.com/ffuf/ffuf/releases.atom",                      category: "security_tools", priority: "normal" },
-  { name: "OJ/gobuster",                  url: "https://github.com/OJ/gobuster/releases.atom",                    category: "security_tools", priority: "normal" },
-  { name: "projectdiscovery/httpx",       url: "https://github.com/projectdiscovery/httpx/releases.atom",         category: "security_tools", priority: "normal" },
-  { name: "projectdiscovery/subfinder",   url: "https://github.com/projectdiscovery/subfinder/releases.atom",     category: "security_tools", priority: "normal" },
-  { name: "zaproxy/zaproxy",              url: "https://github.com/zaproxy/zaproxy/releases.atom",                category: "security_tools", priority: "normal" },
-  { name: "sqlmapproject/sqlmap",         url: "https://github.com/sqlmapproject/sqlmap/releases.atom",           category: "security_tools", priority: "normal" },
-  { name: "rapid7/metasploit-framework",  url: "https://github.com/rapid7/metasploit-framework/releases.atom",    category: "security_tools", priority: "normal" },
+  // Security tools — GitHub release feeds (synthesized titles) + tool vendor blog
+  { name: "projectdiscovery/nuclei",      url: "https://github.com/projectdiscovery/nuclei/releases.atom",        category: "security_tools", priority: "normal", type: "github-release", maxItems: 3 },
+  { name: "ffuf/ffuf",                    url: "https://github.com/ffuf/ffuf/releases.atom",                      category: "security_tools", priority: "normal", type: "github-release", maxItems: 3 },
+  { name: "OJ/gobuster",                  url: "https://github.com/OJ/gobuster/releases.atom",                    category: "security_tools", priority: "normal", type: "github-release", maxItems: 3 },
+  { name: "projectdiscovery/httpx",       url: "https://github.com/projectdiscovery/httpx/releases.atom",         category: "security_tools", priority: "normal", type: "github-release", maxItems: 3 },
+  { name: "projectdiscovery/subfinder",   url: "https://github.com/projectdiscovery/subfinder/releases.atom",     category: "security_tools", priority: "normal", type: "github-release", maxItems: 3 },
+  { name: "zaproxy/zaproxy",              url: "https://github.com/zaproxy/zaproxy/releases.atom",                category: "security_tools", priority: "normal", type: "github-release", maxItems: 3 },
+  { name: "sqlmapproject/sqlmap",         url: "https://github.com/sqlmapproject/sqlmap/releases.atom",           category: "security_tools", priority: "normal", type: "github-release", maxItems: 3 },
+  { name: "rapid7/metasploit-framework",  url: "https://github.com/rapid7/metasploit-framework/releases.atom",    category: "security_tools", priority: "normal", type: "github-release", maxItems: 3 },
+  { name: "ProjectDiscovery Blog",        url: "https://blog.projectdiscovery.io/rss/",                          category: "security_tools", priority: "normal" },
 
   // Offense / red team
   { name: "Offensive Security",   url: "https://www.offsec.com/feed",                                        category: "offense_red_team",    priority: "normal" },
-  { name: "Red Canary Blog",      url: "https://redcanary.com/blog/feed/",                                   category: "offense_red_team",    priority: "normal" },
+  { name: "Red Canary Blog",      url: "https://redcanary.com/blog/feed/",                                   category: "incident_response",   priority: "normal" },
   { name: "Outflank",             url: "https://www.outflank.nl/blog/feed/",                                 category: "offense_red_team",    priority: "normal" },
 ];
 

@@ -9,7 +9,13 @@ import { timeAgo } from "../lib/timeAgo";
  *   critical -> red + bold   (`.headline-critical`)
  *   high     -> bold         (`.headline-high`)
  *   normal   -> regular      (`.headline-medium`)
- * (low/opacity-0.85 tier reserved for muted/queued items)
+ *
+ * Freshness cues:
+ *   - <6h   : "NEW" badge
+ *   - >72h  : subtle opacity de-emphasis (recency-via-style)
+ *
+ * Importance cues:
+ *   - KEV-referenced : "KEV" badge (siren color) — actively exploited CVE
  *
  * Source renders as an uppercase pill (`.source-badge`). If the article has
  * related coverage, a blue "+N" pill appears next to the source.
@@ -19,6 +25,9 @@ const PRIORITY_CLASS: Record<Article["priority"], string> = {
   high: "headline-high",
   normal: "headline-medium",
 };
+
+const NEW_WINDOW_HOURS = 6;
+const STALE_WINDOW_HOURS = 72;
 
 export function Headline(props: {
   article: Article | GroupedArticle;
@@ -34,10 +43,15 @@ export function Headline(props: {
   const [mutedHint, setMutedHint] = useState(false);
   const priorityClass = PRIORITY_CLASS[a.priority] ?? "headline-medium";
   const relatedCount = "related" in a ? a.related.length : 0;
+  const isKev = "kev" in a && a.kev === true;
+
+  const ageH = (Date.now() - a.publishedAt) / 3_600_000;
+  const isNew = ageH >= 0 && ageH < NEW_WINDOW_HOURS;
+  const isStale = ageH > STALE_WINDOW_HOURS;
 
   return (
     <div
-      className="group py-1.5 border-b border-[var(--color-line)] last:border-b-0"
+      className={`group py-1.5 border-b border-[var(--color-line)] last:border-b-0 ${isStale ? "opacity-65" : ""}`}
       onMouseEnter={(e) => props.onHover?.(a, e.currentTarget.getBoundingClientRect())}
       onMouseLeave={() => {
         setMutedHint(false);
@@ -74,6 +88,16 @@ export function Headline(props: {
           >
             {a.title}
           </a>
+          {isNew && (
+            <span className="new-badge" title="Published in the last 6 hours">
+              NEW
+            </span>
+          )}
+          {isKev && (
+            <span className="kev-badge" title="References a CVE in CISA's Known Exploited Vulnerabilities catalog">
+              KEV
+            </span>
+          )}
           {relatedCount > 0 && (
             <span className="related-badge" title={`${relatedCount} more outlet${relatedCount === 1 ? "" : "s"} covering this`}>
               +{relatedCount}

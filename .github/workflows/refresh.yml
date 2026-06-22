@@ -34,10 +34,16 @@ jobs:
       - name: Install deps
         run: npm ci
 
-      - name: Build data (fetch feeds, scrape, write JSON)
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build data (fetch feeds, scrape, KEV, write JSON)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: npm run build:data
+
+      - name: Data health check
+        run: npm run build:check
 
       - name: Commit updated JSON (if changed)
         run: |

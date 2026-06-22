@@ -1,6 +1,16 @@
 import { CATEGORIES, KEYWORDS, KEYWORD_AGNOSTIC_SOURCES } from "../sources";
-import type { Article, CategoryBucket, GroupedArticle, TrendingStory } from "../types";
+import type { Article, CategoryBucket, CategoryId, GroupedArticle, TrendingStory } from "../types";
 import { groupStories, titlesSimilar } from "./groupStories";
+import {
+  ageHours,
+  articleScore,
+  byScore,
+  clampPublishedAt,
+  elevatePriority,
+  LEAD_MAX_AGE_HOURS,
+  MIN_VISIBLE,
+  TRENDING_MAX_AGE_HOURS,
+} from "./score";
 
 /**
  * scripts/lib/router.ts
@@ -10,112 +20,42 @@ import { groupStories, titlesSimilar } from "./groupStories";
  *   2. A Trending section (stories covered by 2+ distinct outlets).
  *   3. A single lead story (biggest, most-priority, most-recent).
  *
+ * Ranking math lives in scripts/lib/score.ts (shared with groupStories.ts).
+ *
  * Caps:
- *   - Per-source GLOBAL cap of 6 across the entire site (applied FIRST,
- *     before routing, so one high-volume source cannot flood every category).
- *   - Per-source WITHIN-category diversity cap (3-5 based on category size).
+ *   - Per-source GLOBAL cap (6) across the whole site, applied before routing.
+ *   - Per-source WITHIN-category diversity cap (3-5 based on source count).
  *
- * Multi-category routing:
- *   Each article is placed in its feed's home category PLUS any category whose
- *   keyword list matches its title+summary. Reddit/HN-style sources are exempt
- *     from keyword routing (see KEYWORD_AGNOSTIC_SOURCES) because their generic
- *   post titles match too broadly.
+ * Freshness:
+ *   - Each category has its own maxAgeHours (hard cap) and softAgeHours
+ *     (preferred window). Items older than softAgeHours only backfill a
+ *     section if it would otherwise drop below MIN_VISIBLE.
  *
- * Ranking (the key bit for cybersecurity):
- *   Articles are scored by a function that blends priority tier with a
- *   time-decay multiplier. Recency matters MORE here than on a general-news
- *   aggregator because cybersecurity is operational — a 9-day-old Patch
- *   Tuesday post should not be ranked above a fresh active-exploit story.
- *   Articles older than MAX_AGE_HOURS are dropped from visible sections.
+ * Importance:
+ *   - KEV-referencing and "actively exploited" stories get a recency-gated
+ *     boost and may have their display priority elevated to critical/high.
  */
 
 const GLOBAL_PER_SOURCE_CAP = 6;
 
-/** Hard age cap for visible sections (14 days). Older articles are dropped. */
-const MAX_AGE_HOURS = 14 * 24;
+interface CategoryWindows {
+  softAgeHours: number;
+  maxAgeHours: number;
+}
 
-/** Half-life for the recency multiplier: at this age, priority weight halves. */
-const PRIORITY_HALF_LIFE_HOURS = 72; // 3 days
+const DEFAULT_WINDOWS: CategoryWindows = { softAgeHours: 96, maxAgeHours: 240 };
 
-/** Per-source cap inside a single category: bigger categories get a bit more. */
+function windowsFor(catId: CategoryId): CategoryWindows {
+  const def = CATEGORIES.find((c) => c.id === catId);
+  const soft = def?.softAgeHours ?? DEFAULT_WINDOWS.softAgeHours;
+  const max = def?.maxAgeHours ?? DEFAULT_WINDOWS.maxAgeHours;
+  return { softAgeHours: soft, maxAgeHours: max };
+}
+
 function diversityCap(totalDistinctSources: number): number {
   if (totalDistinctSources <= 2) return 5;
   if (totalDistinctSources <= 4) return 4;
   return 3;
-}
-
-function priorityRank(p: Article["priority"]): number {
-  return p === "critical" ? 3 : p === "high" ? 2 : 1;
-}
-
-/**
- * Clamp parse artifacts (future dates) to "now" so they don't outrank real
- * current articles. CISA advisories in particular frequently publish a date
- * that's a few days in the future (an "expected" date), which would otherwise
- * pin them to the top of every section.
- */
-function clampPublishedAt(t: number): number {
-  const now = Date.now();
-  return t > now ? now : t;
-}
-
-/**
- * Age of an article in hours (post-clamp, so always >= 0).
- */
-function ageHours(t: number): number {
-  return Math.max(0, (Date.now() - clampPublishedAt(t)) / 3_600_000);
-}
-
-/**
- * Recency multiplier in (0, 1]. Uses exponential decay so an article loses
- * half its priority weight every PRIORITY_HALF_LIFE_HOURS. A fresh article
- * scores 1.0; a 3-day-old scores 0.5; a 6-day-old scores 0.25; etc.
- */
-function recencyMultiplier(t: number): number {
-  const h = ageHours(t);
-  return Math.pow(0.5, h / PRIORITY_HALF_LIFE_HOURS);
-}
-
-/**
- * Composite score used by every sort in the router. Priority tier sets the
- * base range, recency modulates within the tier, and cross-outlet coverage
- * adds a smaller bonus so genuinely big stories still bubble up.
- *
- *   critical: 3.0 * recency  (+ related bonus)
- *   high:     2.0 * recency  (+ related bonus)
- *   normal:   1.0 * recency  (+ related bonus)
- *
- * Net effect: a 9-day-old critical article (recency ~0.20) scores ~0.6,
- * losing to a fresh high article (~2.0) and even a fresh normal one (~1.0).
- */
-function articleScore(a: { priority: Article["priority"]; publishedAt: number; related?: { length: number } }): number {
-  const base = priorityRank(a.priority);
-  const rec = recencyMultiplier(a.publishedAt);
-  const relatedBonus = 0.04 * (a.related?.length ?? 0);
-  return base * rec + relatedBonus;
-}
-
-/** Sort comparator: higher score first. */
-function byScore(a: Article | GroupedArticle, b: Article | GroupedArticle): number {
-  const sa = articleScore(a);
-  const sb = articleScore(b);
-  if (sb !== sa) return sb - sa;
-  // Tiebreak: newest first.
-  return clampPublishedAt(b.publishedAt) - clampPublishedAt(a.publishedAt);
-}
-
-/** Apply the GLOBAL per-source cap, keeping the most-important items. */
-function applyGlobalCap(articles: Article[]): Article[] {
-  const sorted = [...articles].sort(byScore);
-  const counts = new Map<string, number>();
-  const out: Article[] = [];
-  for (const a of sorted) {
-    const c = counts.get(a.source) ?? 0;
-    if (c >= GLOBAL_PER_SOURCE_CAP) continue;
-    counts.set(a.source, c + 1);
-    out.push(a);
-  }
-  return out;
 }
 
 /** Find every category an article belongs in (home + keyword matches). */
@@ -132,7 +72,12 @@ function routeArticle(a: Article): Set<string> {
   return cats;
 }
 
-export function routeAll(rawArticles: Article[]): {
+const CVE_RE = /\bCVE-\d{4}-\d{4,7}\b/gi;
+
+export function routeAll(
+  rawArticles: Article[],
+  kevSet: ReadonlySet<string> = new Set(),
+): {
   categories: CategoryBucket[];
   trending: TrendingStory[];
   leadStory: GroupedArticle | null;
@@ -143,13 +88,22 @@ export function routeAll(rawArticles: Article[]): {
   // to "now" so they neither outrank real current articles nor display as
   // negative-age on the client.
   const clamped = rawArticles.map((a) =>
-    a.publishedAt > now ? { ...a, publishedAt: now } : a
+    a.publishedAt > now ? { ...a, publishedAt: now } : a,
   );
 
-  // Drop articles older than the hard cap BEFORE doing anything else.
-  const fresh = clamped.filter((a) => ageHours(a.publishedAt) <= MAX_AGE_HOURS);
-  const capped = applyGlobalCap(fresh);
+  // KEV + display-priority elevation pass. KEV flag flows into score via
+  // importanceBoost and into elevatePriority for the displayed tier.
+  const tagged = clamped.map((a) => {
+    const hay = `${a.title} ${a.snippet ?? ""}`.toUpperCase();
+    const cves = hay.match(new RegExp(CVE_RE.source.toUpperCase(), "g")) ?? [];
+    const kev = cves.some((c) => kevSet.has(c));
+    const elevated = elevatePriority({ ...a, kev });
+    return { ...a, kev: kev || undefined, priority: elevated };
+  });
 
+  const capped = applyGlobalCap(tagged);
+
+  // Route into categories. An article may appear in more than one category.
   const byCat = new Map<string, Article[]>();
   for (const a of capped) {
     for (const cat of routeArticle(a)) {
@@ -161,27 +115,54 @@ export function routeAll(rawArticles: Article[]): {
 
   const allRouted: Article[] = [];
   for (const arr of byCat.values()) allRouted.push(...arr);
-  const trending = computeTrending(allRouted);
+  const trending = computeTrending(allRouted, now);
 
   const categories: CategoryBucket[] = [];
   let leadCandidate: GroupedArticle | null = null;
+  let leadCandidateScore = -Infinity;
 
   for (const def of CATEGORIES) {
     const pool = byCat.get(def.id) ?? [];
+    if (pool.length === 0) {
+      categories.push({
+        id: def.id,
+        label: def.label,
+        column: def.column ?? "left",
+        articles: [],
+        articlesAll: [],
+        sourceCount: 0,
+      });
+      continue;
+    }
+
     const distinctSources = new Set(pool.map((a) => a.source)).size;
     const cap = diversityCap(distinctSources);
+    const win = windowsFor(def.id);
 
-    // Group first (full pool), then diversity-cap per-source inside category.
-    const groupedAll = groupStories(pool).sort(byScore);
+    // Hard age cap for this category.
+    const ageFiltered = pool.filter((a) => ageHours(a.publishedAt, now) <= win.maxAgeHours);
+
+    // Group first (full pool within age cap), then sort by score.
+    const groupedAll = groupStories(ageFiltered, now).sort((a, b) => byScore(a, b, now));
+
+    // Starvation-aware visible fill: take fresh items first; only pull stale
+    // items from the soft-window tail when the section would be too thin.
+    const fresh = groupedAll.filter((g) => ageHours(g.publishedAt, now) <= win.softAgeHours);
+    const stale = groupedAll.filter((g) => ageHours(g.publishedAt, now) > win.softAgeHours);
 
     const counts = new Map<string, number>();
     const visible: GroupedArticle[] = [];
-    for (const g of groupedAll) {
-      const c = counts.get(g.source) ?? 0;
-      if (c >= cap) continue;
-      counts.set(g.source, c + 1);
-      visible.push(g);
-    }
+    const pick = (list: GroupedArticle[]) => {
+      for (const g of list) {
+        if (visible.length >= 12) break;
+        const c = counts.get(g.source) ?? 0;
+        if (c >= cap) continue;
+        counts.set(g.source, c + 1);
+        visible.push(g);
+      }
+    };
+    pick(fresh);
+    if (visible.length < MIN_VISIBLE) pick(stale);
 
     categories.push({
       id: def.id,
@@ -193,26 +174,55 @@ export function routeAll(rawArticles: Article[]): {
     });
 
     for (const g of groupedAll) {
-      // byScore(a,b) returns positive when b > a; we want to replace
-      // leadCandidate when g is HIGHER-scoring, i.e. byScore(g, lead) < 0.
-      if (!leadCandidate || byScore(g, leadCandidate) < 0) {
+      // Lead story: must be within LEAD_MAX_AGE_HOURS; fall back to overall
+      // top only if no fresh candidate exists.
+      const isFresh = ageHours(g.publishedAt, now) <= LEAD_MAX_AGE_HOURS;
+      if (!isFresh && leadCandidate) continue;
+      const sc = scoreOf(g, now);
+      if (sc > leadCandidateScore) {
         leadCandidate = g;
+        leadCandidateScore = sc;
       }
     }
   }
 
+  // If the lead candidate is older than LEAD_MAX_AGE_HOURS (only happens when
+  // the whole corpus is stale), accept it as-is rather than showing nothing.
   return { categories, trending, leadStory: leadCandidate };
+}
+
+function scoreOf(
+  a: { priority: Article["priority"]; publishedAt: number; kev?: boolean; related?: { length: number } | unknown[] },
+  now: number,
+): number {
+  return articleScore(a, now);
+}
+
+/** Apply the GLOBAL per-source cap, keeping the most-important items. */
+function applyGlobalCap(articles: Article[]): Article[] {
+  const now = Date.now();
+  const sorted = [...articles].sort((a, b) => byScore(a, b, now));
+  const counts = new Map<string, number>();
+  const out: Article[] = [];
+  for (const a of sorted) {
+    const c = counts.get(a.source) ?? 0;
+    if (c >= GLOBAL_PER_SOURCE_CAP) continue;
+    counts.set(a.source, c + 1);
+    out.push(a);
+  }
+  return out;
 }
 
 /**
  * Trending stories = clusters of articles from 2+ distinct outlets where
- * titles are Jaccard-similar (>=0.4). Same article routed into multiple
- * categories is deduped by URL before clustering. Trending ranking weights
- * coverage count heavily but still applies the recency multiplier.
+ * titles are Jaccard-similar (>=0.4). Only items within TRENDING_MAX_AGE_HOURS
+ * are eligible, so the Trending rail is always fresh.
  */
-function computeTrending(all: Article[]): TrendingStory[] {
+function computeTrending(all: Article[], now: number): TrendingStory[] {
+  const fresh = all.filter((a) => ageHours(a.publishedAt, now) <= TRENDING_MAX_AGE_HOURS);
+
   const byUrl = new Map<string, Article>();
-  for (const a of all) byUrl.set(a.url, a);
+  for (const a of fresh) byUrl.set(a.url, a);
   const uniq = [...byUrl.values()];
 
   const clusters: Article[][] = [];
@@ -235,7 +245,7 @@ function computeTrending(all: Article[]): TrendingStory[] {
   return clusters
     .filter((c) => new Set(c.map((a) => a.source)).size >= 2)
     .map((c) => {
-      const sorted = c.sort(byScore);
+      const sorted = c.sort((a, b) => byScore(a, b, now));
       const primary = sorted[0];
       return {
         id: primary.id,
@@ -245,15 +255,15 @@ function computeTrending(all: Article[]): TrendingStory[] {
         publishedAt: primary.publishedAt,
         sources: [...new Set(c.map((a) => a.source))],
         priority: primary.priority,
+        kev: primary.kev,
       };
     })
     .sort((a, b) => {
-      // Coverage count dominates, then per-article score, then recency.
       const srcCmp = b.sources.length - a.sources.length;
       if (srcCmp !== 0) return srcCmp;
-      const sa = articleScore(a);
-      const sb = articleScore(b);
+      const sa = scoreOf(a, now);
+      const sb = scoreOf(b, now);
       if (sb !== sa) return sb - sa;
-      return clampPublishedAt(b.publishedAt) - clampPublishedAt(a.publishedAt);
+      return clampPublishedAt(b.publishedAt, now) - clampPublishedAt(a.publishedAt, now);
     });
 }
