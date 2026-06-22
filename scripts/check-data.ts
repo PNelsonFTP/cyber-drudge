@@ -77,14 +77,23 @@ async function main(): Promise<void> {
   }
   if (leakCount === 0) info("no HTML entity leaks in titles");
 
-  // 3. Global per-source cap (6) sanity across visible items
-  const perSource = new Map<string, number>();
-  for (const c of p.categories) for (const a of c.articles) perSource.set(a.source, (perSource.get(a.source) ?? 0) + 1);
+  // 3. Global per-source cap (6) sanity across visible items.
+  // Note: an article can appear in multiple categories via keyword routing,
+  // so we dedupe by URL before counting — otherwise a properly-capped feed
+  // that keyword-routes into 2 sections would falsely show as 2x its real size.
+  const perSource = new Map<string, Set<string>>();
+  for (const c of p.categories) {
+    for (const a of c.articles) {
+      const set = perSource.get(a.source) ?? new Set<string>();
+      set.add(a.url);
+      perSource.set(a.source, set);
+    }
+  }
   let capViolations = 0;
-  for (const [src, n] of perSource) {
-    if (n > 6) {
+  for (const [src, urls] of perSource) {
+    if (urls.size > 6) {
       capViolations++;
-      warn(`global cap exceeded: ${src} shows ${n} (>6)`);
+      warn(`global cap exceeded: ${src} shows ${urls.size} unique URLs (>6)`);
     }
   }
   if (capViolations === 0) info("per-source global cap (6) respected");

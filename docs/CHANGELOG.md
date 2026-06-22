@@ -133,7 +133,20 @@ Built the full plan in [`UPGRADE-PLAN.md`](./UPGRADE-PLAN.md).
 - `scripts/check-data.ts` + `npm run build:check` — feed health, per-category freshness/diversity, entity-leak scan, per-source cap. Warn by default, `--strict` to fail.
 - CI: `npm run typecheck` and `npm run build:check` added to `.github/workflows/refresh.yml`.
 
-**Validation:** `tsc --noEmit` green; production bundle 67.5 KB gzipped (flat). Router logic verified offline against existing data — new lead is a fresh CISA KEV story (was a stale 17h-old article); trending now freshness-gated. Live `build:data` runs on the GitHub Actions runner (network calls blocked in some local sandboxes).
+**Validation (live, 2026-06-22):** All CI steps passed on first push (Typecheck, Build data w/ KEV, Data health check, Build site, Deploy).
+
+Measured before → after (live `headlines.json`):
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Feed health | 46/51 (90%) | 58/59 (98%) |
+| Visible articles 7d+ old | 27% (32) | **2% (2)** |
+| Lead story age | 17.4h | **0.0h** (fresh CISA KEV story) |
+| `data_breaches` sources | thin | 4 |
+| `cloud_security` sources | thin | 4 |
+| `security_tools` items | 0 (dead feeds) | 4 items / 3 sources |
+
+`tsc --noEmit` green; production bundle 67.5 KB gzipped (flat vs. baseline). Network-bound `build:data` runs on the GitHub Actions runner (live feed fetches are blocked in some local dev sandboxes).
 
 ---
 
