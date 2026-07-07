@@ -56,7 +56,9 @@ async function main(): Promise<void> {
 
   // 2. Per-category freshness + source diversity
   console.log("\nCategories:");
-  const entityLeak = /^&(amp|lt|gt|quot|apos|nbsp);|&#\d+;|&[a-z]+;$/i;
+  // Match a leaked entity anywhere in the title (the old anchored version
+  // missed mid-string leaks like "Foo &amp; Bar").
+  const entityLeak = /&(amp|lt|gt|quot|apos|nbsp|#\d+|#x[0-9a-f]+);/i;
   let leakCount = 0;
   for (const c of p.categories) {
     const items = c.articles ?? [];

@@ -72,18 +72,26 @@ async function yahooQuote(symbol: string): Promise<Quote | null> {
 
     const price = meta.regularMarketPrice;
 
-    // Find a valid reference (previous close) from one of several fields.
-    // chartPreviousClose is the most reliable; `previousClose` is sometimes
-    // missing; the last bar before the current one in `indicators.quote` is
-    // the fallback.
+    // Reference (previous close) selection. With range=5d,
+    // meta.chartPreviousClose is the close BEFORE the 5-day window (~6
+    // sessions ago), which wildly overstates the daily change — so the
+    // second-to-last daily bar is the primary source (skipping null bars
+    // Yahoo emits for halted days), then meta.previousClose, and
+    // chartPreviousClose only as a last resort.
     const closes = result?.indicators?.quote?.[0]?.close ?? [];
-    const lastBarIdx = closes.length - 1;
-    const priorBar =
-      lastBarIdx >= 0 ? closes[lastBarIdx] : null;
+    let priorBar: number | null = null;
+    for (let i = closes.length - 2; i >= 0; i--) {
+      const c = closes[i];
+      if (typeof c === "number" && Number.isFinite(c)) {
+        priorBar = c;
+        break;
+      }
+    }
     const ref =
-      meta.chartPreviousClose ??
+      priorBar ??
       meta.previousClose ??
-      (typeof priorBar === "number" ? priorBar : price);
+      meta.chartPreviousClose ??
+      price;
 
     const change = price - ref;
     return {

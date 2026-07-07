@@ -37,10 +37,20 @@ async function main(): Promise<void> {
     { articles: feedArticles, stats: feedStats },
     { articles: scraped, stats: scrapeStats },
     kevSet,
-  ] = await Promise.all([fetchFeeds(), scrapeSources(), fetchKevSet()]);
+    prevDates,
+  ] = await Promise.all([fetchFeeds(), scrapeSources(), fetchKevSet(), loadPreviousDates()]);
+
+  // Scraped listings have no publish dates, so scrape-sources stamps
+  // Date.now(). Without correction every scraped item is reborn as
+  // "0h old" each hourly run and games the recency ranking forever.
+  // Carry the first-seen timestamp forward from the previous payload.
+  const scrapedStable = scraped.map((a) => {
+    const prev = prevDates.get(a.url);
+    return prev !== undefined && prev < a.publishedAt ? { ...a, publishedAt: prev } : a;
+  });
 
   const stats: FeedStat[] = [...feedStats, ...scrapeStats];
-  const allArticles = [...feedArticles, ...scraped];
+  const allArticles = [...feedArticles, ...scrapedStable];
   console.log(
     `[build:data] fetched ${allArticles.length} articles from ${stats.filter((s) => s.ok).length}/${stats.length} sources; KEV=${kevSet.size}`
   );
@@ -98,6 +108,24 @@ async function main(): Promise<void> {
   }
 }
 
+/** url -> publishedAt from the previous headlines.json (empty map if none). */
+async function loadPreviousDates(): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  try {
+    const raw = await readFile(HEADLINES_PATH, "utf8");
+    const prev = JSON.parse(raw) as HeadlinesPayload;
+    for (const cat of prev.categories ?? []) {
+      for (const g of cat.articlesAll ?? cat.articles ?? []) {
+        map.set(g.url, g.publishedAt);
+        for (const r of g.related ?? []) map.set(r.url, r.publishedAt);
+      }
+    }
+  } catch {
+    // first run or corrupt previous payload — fine, dates start fresh
+  }
+  return map;
+}
+
 // If a previous headlines.json exists and the new build blows up, keep it.
 main().catch(async (e) => {
   console.error("[build:data] FATAL:", e);
@@ -118,7 +146,3 @@ main().catch(async (e) => {
   }
   process.exit(0); // never fail the build on data errors
 });
-
-// readFile kept imported in case a future revision wants to diff old vs new
-// payloads before writing. Marked unused today.
-void readFile;

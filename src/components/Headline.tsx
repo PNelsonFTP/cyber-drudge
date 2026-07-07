@@ -80,14 +80,21 @@ export function Headline(props: {
           {"\u23F7"}
         </button>
         <div className="flex-1">
-          <a
-            href={a.url}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            className={priorityClass}
-          >
-            {a.title}
-          </a>
+          {/* Belt-and-suspenders: the pipeline already rejects non-http(s)
+              links, but never render a feed-controlled scheme like
+              javascript: into an href. */}
+          {/^https?:\/\//i.test(a.url) ? (
+            <a
+              href={a.url}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className={priorityClass}
+            >
+              {a.title}
+            </a>
+          ) : (
+            <span className={priorityClass}>{a.title}</span>
+          )}
           {isNew && (
             <span className="new-badge" title="Published in the last 6 hours">
               NEW
@@ -107,7 +114,7 @@ export function Headline(props: {
             <span className="source-badge">{a.source}</span>
             <span>{timeAgo(a.publishedAt)}</span>
             <button
-              className="opacity-0 group-hover:opacity-100 underline-offset-2 hover:underline hover:siren"
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 underline-offset-2 hover:underline hover:siren"
               onMouseEnter={() => setMutedHint(true)}
               onClick={() => {
                 props.onMuteSource(a.source);

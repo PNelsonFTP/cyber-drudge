@@ -1,8 +1,11 @@
+import { useEffect, useRef } from "react";
+
 /**
  * src/components/ManageMutes.tsx
  * -----------------------------
  * Modal listing every muted source and category with one-click "restore".
- * Triggered from the header (X N button).
+ * Triggered from the header (X N button). Escape closes; focus moves to the
+ * close button on open so keyboard users aren't stranded behind the overlay.
  */
 export function ManageMutes(props: {
   open: boolean;
@@ -14,6 +17,19 @@ export function ManageMutes(props: {
   onRestoreCategory: (c: string) => void;
   onRestoreAll: () => void;
 }) {
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const { open, onClose } = props;
+
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   if (!props.open) return null;
   const nothing = props.mutedSources.length === 0 && props.mutedCategories.length === 0;
 
@@ -23,14 +39,18 @@ export function ManageMutes(props: {
       onClick={props.onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="manage-mutes-title"
         className="bg-[var(--color-bg)] border border-[var(--color-line)] w-full max-w-lg p-4 mt-10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center mb-3">
-          <h2 className="font-bold uppercase mono text-[13px] tracking-wider">
+          <h2 id="manage-mutes-title" className="font-bold uppercase mono text-[13px] tracking-wider">
             Manage mutes
           </h2>
           <button
+            ref={closeRef}
             className="ml-auto mono text-[12px] text-[var(--color-muted)] hover:siren"
             onClick={props.onClose}
           >

@@ -1,8 +1,8 @@
 # Architecture & Design Document
 
-**Project:** Cyber Drudge  
-**Version:** 1.0.0  
-**Last updated:** 2026-06-18
+**Project:** Cyber Drudge
+**Version:** 1.2.0
+**Last updated:** 2026-07-07
 
 ---
 
@@ -12,10 +12,10 @@ Cyber Drudge is a static, Drudge-Report-style cybersecurity news aggregator. It 
 
 The system has two phases:
 
-1. **Build-time data pipeline** — Node.js scripts fetch ~50 RSS feeds, scrape one HTML source, route articles into 18 categories, compute trending clusters and a lead story, fetch stock quotes, and optionally generate an LLM brief. Output is three JSON files.
+1. **Build-time data pipeline** — Node.js scripts fetch 91 RSS/Atom feeds, scrape one HTML source, pull CISA KEV, route articles into 18 categories, compute trending clusters and a lead story, fetch stock quotes, and optionally generate an LLM brief. Output is three JSON files.
 2. **Client SPA** — A React app loads those JSON files from GitHub Pages. No live RSS, no backend, no WebSocket refresh.
 
-This separation is intentional and non-negotiable: the deployed app must never fetch RSS directly.
+**The one rule:** The deployed app must never fetch RSS directly.
 
 ---
 
@@ -24,26 +24,30 @@ This separation is intentional and non-negotiable: the deployed app must never f
 ```mermaid
 flowchart TB
   subgraph CI["GitHub Actions (hourly + push)"]
+    TC[Typecheck]
     A[npm run build:data]
+    CH[build:check]
     B[npm run build]
     C[Commit JSON to main]
     D[Deploy dist/ to Pages]
-    A --> C
-    C --> B
-    B --> D
+    TC --> A --> CH --> C --> B --> D
   end
 
   subgraph BuildScripts["scripts/ (Node + tsx)"]
     F[fetch-feeds.ts]
     S[scrape-sources.ts]
+    K[fetch-kev.ts]
     R[lib/router.ts]
+    SC[lib/score.ts]
     G[lib/groupStories.ts]
     ST[fetch-stocks.ts]
     BR[generate-brief.ts]
     BD[build-data.ts]
     F --> BD
     S --> BD
+    K --> BD
     BD --> R
+    R --> SC
     R --> G
     BD --> ST
     BD --> BR
@@ -75,90 +79,112 @@ flowchart TB
 
 | Source type | Module | Concurrency | Timeout | Retries |
 | ----------- | ------ | ----------- | ------- | ------- |
-| RSS/Atom | `fetch-feeds.ts` | 8 parallel | 8s | 1 |
-| HTML scrape | `scrape-sources.ts` | Sequential | 8s | 1 |
-| Yahoo Finance | `fetch-stocks.ts` | Serial + 250ms delay | 8s | 0 |
+| RSS/Atom (91) | `fetch-feeds.ts` | All feeds parallel | 8s incl. body read | 1 (+1s backoff) |
+| HTML scrape (1) | `scrape-sources.ts` | Parallel | 8s | 0 |
+| CISA KEV JSON | `fetch-kev.ts` | Single fetch | 10s | 0 (fail-soft) |
+| Yahoo Finance | `fetch-stocks.ts` | Serial + 250ms delay | 5s | 0 |
 
 **Feed processing (`fetch-feeds.ts`):**
 
-- Parses RSS 2.0 and Atom via `fast-xml-parser`
-- Rotates User-Agent strings
+- Parses RSS 2.0 and Atom via `fast-xml-parser` v5, including attribute-bearing
+  text nodes (`#text`) and multi-`<link>` Atom entries (prefers `rel="alternate"`)
+- Rotates User-Agent strings; supports per-feed extra headers (`FeedDef.headers`)
+- The 8s abort timer stays armed **through the body read** — a slow-streaming
+  server cannot stall the hourly build
 - Decodes HTML entities in titles/summaries
-- Filters GitHub release noise (`/releases/tag/`, `Release vX.Y.Z`)
-- Raises XML entity limits to 100,000 for large feeds
-- Per-feed `maxItems` cap (default 15)
-
-**Scrape (`scrape-sources.ts`):**
-
-- CrowdStrike blog HTML fallback when RSS is insufficient
+- Rejects non-`http(s)` article URLs at ingest (XSS hygiene)
+- Filters GitHub release noise (unless `type: "github-release"`); per-feed
+  `maxItems` cap is applied **after** filtering
+- **Parser hardening (v1.1):** Rejects bodies that don't start with `<?xml`, `<rss`, or `<feed`
+- **`github-release` type:** Synthesizes titles like `nuclei v3.2 released` so pure version tags aren't dropped
 
 ### 3.2 Routing (`lib/router.ts`)
 
-Input: flat `Article[]` from all sources.
+Input: flat `Article[]` + optional `kevSet: Set<string>`.
 
-**Step 1 — Global per-source cap (6)**  
-Applied before routing. Prevents one high-volume outlet from dominating the entire site.
+**Step 1 — Clamp future dates**  
+CISA and others sometimes publish future timestamps; clamp to `now`.
 
-**Step 2 — Multi-category placement**  
-Each article goes to:
+**Step 2 — KEV tagging + priority elevation**
+Extract `CVE-YYYY-NNNNN` from title/snippet; if in KEV set, set `kev: true` and elevate display priority via `elevatePriority()`. (v1.2 fixed a regex bug that had silently disabled this since v1.1.)
 
-- Its feed's **home category** (from `scripts/sources.ts`)
-- Any category whose **keyword rules** match title + summary
+**Step 3 — Global per-source cap (6)**
+Applied before routing, keeping highest-scoring articles per source.
 
-**Keyword-agnostic sources** (`r/netsec`, `r/cybersecurity`) skip keyword routing to avoid polluting every section.
+**Step 4 — Multi-category placement**
+Home category + keyword-matched categories. Keywords compile to **word-boundary regexes** (v1.2): whole-word by default, trailing `*` for prefix matching ("encrypt\*"), non-word edge characters as written ("cve-"). Community aggregators (Lobsters, HN, digests) are keyword-agnostic — see `KEYWORD_AGNOSTIC_SOURCES`.
 
-**Step 3 — Per-category diversity cap**  
-Within each category, cap articles per source (3–5 based on source count).
+**Step 5 — Per-category age filter**  
+Each category has `maxAgeHours` and `softAgeHours` (defined in `scripts/sources.ts`).
 
-**Step 4 — Age filter**  
-Articles older than **14 days** are dropped from visible sections.
+**Step 6 — Grouping + scoring**  
+Jaccard ≥ 0.4 clustering via `groupStories.ts`; sort by shared `score.ts`.
 
-**Step 5 — Scoring and sort**  
-Composite score:
+**Step 7 — Starvation-aware visible fill**
+Prefer articles within `softAgeHours`; stale items only top a thin section up to `MIN_VISIBLE` (4) — never fill it to the 12-item brim.
+
+**Step 8 — Trending**
+Clusters with 2+ distinct outlets, **only articles ≤ 72h old**.
+
+**Step 9 — Lead story**
+Best **fresh** (≤ 96h) grouped article wins regardless of category processing order; the best stale candidate is used only when the whole corpus is stale.
+
+**Scraped-article dates:** listing pages carry no timestamps, so scraped items are stamped at first sight and their `publishedAt` is **carried forward from the previous `headlines.json`** on subsequent runs (v1.2) — they age normally instead of being reborn hourly.
+
+### 3.3 Scoring (`lib/score.ts`) — v1.1
+
+Single source of truth for all ranking:
 
 ```
-score = priorityRank × recencyMultiplier
+score = (priorityRank + importanceBoost) × recencyMultiplier + relatedBonus
 ```
 
-| Priority | Rank |
-| -------- | ---- |
-| critical | 3 |
-| high | 2 |
-| normal | 1 |
+| Constant | Value | Meaning |
+| -------- | ----- | ------- |
+| `HALF_LIFE_HOURS` | 48 | Recency decay half-life (was 72 in v1.0) |
+| `TRENDING_MAX_AGE_HOURS` | 72 | Trending eligibility |
+| `LEAD_MAX_AGE_HOURS` | 96 | Lead-story preference |
+| `MIN_VISIBLE` | 4 | Backfill threshold |
+| `MAX_IMPORTANCE_BOOST` | 2.5 | Cap on additive boost |
 
-Recency multiplier uses exponential decay with **72-hour half-life**:
+**Importance signals (regex on title + snippet):** actively exploited, KEV, zero-day, emergency directive, unauth RCE, CVSS 9–10, critical flaw, ransomware, mass-record breaches.
 
-```
-multiplier = 0.5 ^ (ageHours / 72)
-```
+**KEV boost:** +1.5 when article references a CVE in CISA's catalog.
 
-Future-dated items (bad feed timestamps) are clamped to `now`.
+### 3.4 Per-category age windows
 
-**Step 6 — Story grouping (`lib/groupStories.ts`)**  
-Jaccard similarity ≥ 0.4 on normalized title tokens clusters related coverage. Same scoring applies to pick the representative article per cluster.
+| Lane | Categories | softAgeHours | maxAgeHours |
+| ---- | ---------- | ------------ | ----------- |
+| Fast | breaking_threats, phishing_fraud | 48 | 120 (5d) |
+| Standard | incident_response, vulnerabilities, malware, threat_intel, breaches, cloud, network, identity, ai, ics_ot, offense | 96 | 240 (10d) |
+| Slow | policy, vendor, bug_bounty, security_tools, crypto_pqc | 168 | 336 (14d) |
 
-**Step 7 — Trending**  
-Clusters with **2+ distinct outlets** become trending stories.
+(`incident_response` moved to the standard lane in v1.2 — DFIR write-ups
+publish days after the intrusion and were being age-dropped.)
 
-**Step 8 — Lead story**  
-Highest-scoring grouped article site-wide (after caps and age filter).
-
-### 3.3 Output schema (`headlines.json`)
+### 3.5 Output schema (`headlines.json`)
 
 ```typescript
 interface HeadlinesPayload {
-  generatedAt: number;        // Unix ms
-  categories: CategoryBucket[]; // Non-empty only
+  generatedAt: number;
+  categories: CategoryBucket[];
   trending: TrendingStory[];
   leadStory: GroupedArticle | null;
-  feedStats: FeedStat[];        // ok/fail per source
+  feedStats: FeedStat[];
+}
+
+interface Article {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  category: CategoryId;
+  publishedAt: number;
+  snippet?: string;
+  priority: Priority;
+  kev?: boolean;  // v1.1
 }
 ```
-
-Each `CategoryBucket` exposes:
-
-- `articles` — visible list (grouped, capped, sorted)
-- `articlesAll` — full pool for bookmarks/search
 
 ---
 
@@ -172,9 +198,7 @@ Each `CategoryBucket` exposes:
 | **Center (8)** | DATA BREACHES, PHISHING & FRAUD, CLOUD SECURITY, NETWORK & ENDPOINT, IDENTITY & ACCESS, AI SECURITY, CRYPTO & PQC, ICS/OT SECURITY |
 | **Right (6)** | POLICY & REGULATION, VENDOR & PRODUCT NEWS, INCIDENT RESPONSE, BUG BOUNTY & RESEARCH, SECURITY TOOLS, OFFENSE / RED TEAM |
 
-**Layout change (2026-06-18):** DATA BREACHES and PHISHING & FRAUD moved from left to center for visual balance.
-
-**Primary edit surface:** `scripts/sources.ts` — `CATEGORIES`, `FEEDS`, `KEYWORDS`, `STOCK_TICKERS`.
+**Primary edit surface:** `scripts/sources.ts`
 
 ---
 
@@ -186,173 +210,128 @@ Each `CategoryBucket` exposes:
 | ----- | ---------- |
 | Framework | React 19 |
 | Build | Vite 6 (`base: "/cyber-drudge/"`) |
-| Styling | Tailwind CSS v4 + custom CSS variables in `src/styles.css` |
-| State | React hooks + `localStorage` (bookmarks, queue, mutes, theme) |
-| Data loading | `useHeadlines` — fetch JSON + sessionStorage SWR cache |
+| Styling | Tailwind CSS v4 + CSS variables in `src/styles.css` |
+| State | React hooks + `localStorage` / `sessionStorage` |
+| Data loading | `useHeadlines` — fetch JSON + sessionStorage SWR |
 
 ### 5.2 Views
 
 | View | Behavior |
 | ---- | -------- |
 | **Home** | 3-column grid, lead story, trending, daily brief, stock ticker |
-| **Bookmarks** | Saved article IDs from `localStorage` |
+| **Bookmarks** | Saved article IDs |
 | **Queue** | Read-later list |
 
-### 5.3 UI features
+### 5.3 UI features (v1.1 additions in bold)
 
-- **Search** — filters visible articles by title/summary/source
-- **Hover card** — summary preview on link hover (fixed dark-mode background in v1.0.1)
-- **Source pills** — outlet name badges (AI-Drudge pattern)
-- **Related badges** — “+N related” for grouped stories
-- **Theme** — light / dark / system via CSS variables
-- **Mute manager** — hide sources or entire categories
+- Search, hover card, source pills, related badges
+- Theme: light / dark / system
+- Mute manager
+- **NEW badge** (<6h), **KEV badge**, **opacity de-emphasis** (>72h)
+- **Masthead "updated Xm ago"**
+- **Lead story UTC timestamp**
 
-### 5.4 Design system (FT + AI-Drudge)
+### 5.4 Design system
 
-Inspired by [AI-Drudge](https://pnelsonftp.github.io/ai-drudge/) layout with FT Portfolios palette:
-
-| Token | Light | Dark |
-| ----- | ----- | ---- |
-| Background | Cream `#FFF1E5` | Navy `#0D1B2A` |
-| Accent | FT orange `#F2A900` | Same |
-| Link / brand | FT blue `#0055A4` | Lighter blue variant |
-| Section headings | Red underline bar | Red underline bar |
-| Ticker bar | Black background, mono font | Same |
-
-**Section headings:** uppercase labels with red bottom border (`.section-heading`).
-
-**Masthead:** monospace site title, compact nav.
+FT Portfolios palette + AI-Drudge layout patterns. See `src/styles.css` for tokens (`.section-heading`, `.source-badge`, `.kev-badge`, `.new-badge`, `.ticker-bar`).
 
 ---
 
 ## 6. Deployment architecture
 
-```mermaid
-sequenceDiagram
-  participant Cron as GitHub Cron
-  participant GHA as Actions workflow
-  participant Feeds as RSS / Yahoo / Scrape
-  participant Main as main branch
-  participant Pages as GitHub Pages
-
-  Cron->>GHA: refresh.yml (5 * * * *)
-  GHA->>Feeds: build:data
-  Feeds-->>GHA: headlines.json, stocks.json, brief.json
-  GHA->>Main: commit JSON (if changed)
-  GHA->>GHA: vite build
-  GHA->>Pages: deploy dist/
-  Note over Pages: https://pnelsonftp.github.io/cyber-drudge/
-```
-
 **Workflow:** `.github/workflows/refresh.yml`
 
 - Triggers: cron `5 * * * *`, push to `main`, `workflow_dispatch`
-- Concurrency group `refresh-deploy` (cancel in-flight)
-- Node 20, `npm ci`, `npm run build:data`, commit JSON, `npm run build`, deploy Pages
+- Steps: Checkout → Node 24 → `npm ci` → **typecheck** → **build:data** → **build:check** → commit JSON (rebase-first) → **build** → deploy Pages
+- Hardening (v1.2): actions pinned to commit SHAs, 15-minute job timeout, `github-pages` environment, Dependabot for npm + actions
 
 **Graceful degradation:**
 
-- Zero articles from fetch → keep previous `headlines.json`, exit 0
-- Stock fetch failure → write `{}`
-- Brief failure → curated fallback brief
+- Zero articles → keep previous `headlines.json`
+- Stock/brief/KEV failure → empty or fallback; build continues
 
 ---
 
-## 7. Stock ticker subsystem
+## 7. Quality gates
 
-**Tickers:** `CRWD`, `PANW`, `S`, `FTNT`, `ZS`, `OKTA`, `SNET`
+| Check | Command |
+| ----- | ------- |
+| TypeScript | `npm run typecheck` |
+| Production build | `npm run build` |
+| Data rebuild | `npm run build:data` |
+| Health report | `npm run build:check` |
+| Strict health (CI optional) | `npm run build:check -- --strict` |
+| **Live source validation (v1.2)** | `npm run validate:sources` |
 
-**Provider:** Yahoo Finance Chart API only (Stooq removed after 404 responses caused all `change: 0`).
+`build:check` validates: feed ok/total, per-category diversity, entity leaks, per-source cap (deduped by URL), trending/lead freshness.
 
-**Change calculation:**
-
-```
-change = ((price - chartPreviousClose) / chartPreviousClose) × 100
-```
-
-Serial requests with 250ms delay to reduce rate-limit risk.
-
----
-
-## 8. Daily brief subsystem
-
-**Module:** `scripts/generate-brief.ts`
-
-| Mode | Condition |
-| ---- | --------- |
-| LLM | `ANTHROPIC_API_KEY` set in CI |
-| Curated fallback | No key or API error |
-
-Brief is a short markdown-ish summary shown in the center column.
+`validate:sources` fetches every configured feed, the scrape target, the KEV endpoint, and every stock ticker live — reporting HTTP status, XML validity, item count, and newest-item age (flags zombie feeds >45 days quiet). Run it before and after editing `sources.ts`.
 
 ---
 
-## 9. File map
+## 8. File map
 
 ```
 cyber-drudge/
-├── .github/workflows/refresh.yml   # CI/CD
-├── docs/                           # This documentation set
-├── public/data/                    # Generated JSON (committed by cron)
+├── .github/
+│   ├── workflows/refresh.yml       # SHA-pinned actions, Node 24
+│   └── dependabot.yml              # v1.2
+├── docs/                           # Full documentation set
+├── index.html                      # %BASE_URL% placeholders + theme pre-hydration
+├── vite.config.ts                  # base path — the ONLY file embedding the repo name
 ├── scripts/
-│   ├── sources.ts                  # ★ Primary config
-│   ├── build-data.ts               # Orchestrator
+│   ├── sources.ts                  # ★ Feeds, categories, keywords, age windows
+│   ├── build-data.ts               # Orchestrator (+ first-seen date carry-forward)
 │   ├── fetch-feeds.ts
+│   ├── fetch-kev.ts                # v1.1
 │   ├── fetch-stocks.ts
 │   ├── scrape-sources.ts
 │   ├── generate-brief.ts
+│   ├── check-data.ts               # v1.1 health gate
+│   ├── validate-sources.ts         # v1.2 live link/feed validator
 │   ├── types.ts
 │   └── lib/
-│       ├── router.ts               # Routing + scoring
-│       ├── groupStories.ts         # Jaccard clustering
-│       └── timeAgo.ts              # Date parsing
-├── src/
-│   ├── App.tsx                     # Layout + views
-│   ├── styles.css                  # Theme tokens
-│   ├── components/                 # UI pieces
-│   ├── hooks/                      # Data + theme + localStorage
-│   └── lib/types.ts                # Client types (mirrors scripts)
-├── vite.config.ts                  # base path for GitHub Pages
-└── package.json
+│       ├── score.ts                # v1.1 shared ranking
+│       ├── router.ts               # keyword compilation, KEV tagging, lead/trending
+│       ├── groupStories.ts
+│       └── timeAgo.ts
+├── public/data/                    # Generated JSON (committed by cron)
+└── src/
+    ├── App.tsx
+    ├── styles.css
+    ├── components/
+    └── hooks/
 ```
 
 ---
 
-## 10. Quality gates (manual / local)
-
-| Check | Command / method |
-| ----- | ---------------- |
-| TypeScript | `npx tsc --noEmit` |
-| Production build | `npm run build` |
-| Data rebuild | `npm run build:data` |
-| Entity leaks | Grep headlines for `&amp;`, `&#` |
-| Per-source cap | Assert ≤6 unique URLs per source site-wide |
-| Bundle budget | ~72 KB gzipped (excl. JSON) |
-
----
-
-## 11. Design decisions log
+## 9. Design decisions log
 
 | Decision | Rationale |
 | -------- | --------- |
-| Build-time-only RSS | Avoid CORS, rate limits, and client complexity; matches AI-Drudge model |
-| Global source cap 6 | Prevent Krebs/CISA/etc. from filling every column |
-| Time-decay ranking | Cyber news is operational; stale Patch Tuesday must not beat fresh exploits |
-| 14-day hard cap | Drudge-style freshness; reduces noise in slow categories |
-| Jaccard ≥ 0.4 | Balance between over-merging and missing related coverage |
-| Yahoo-only stocks | Stooq 404 broke change%; Yahoo `chartPreviousClose` is reliable |
-| FT + AI-Drudge visual merge | Familiar Drudge layout with brand-consistent colors |
-| sessionStorage SWR | Fast revisits without re-fetching JSON on every navigation |
-| Commit JSON to main | Pages serves static files; cron keeps data fresh without a database |
+| Build-time-only RSS | No CORS, rate limits, or client complexity |
+| Shared `score.ts` (v1.1) | Prevent router/groupStories drift |
+| Per-category age windows (v1.1) | Fast lanes need tighter freshness than policy |
+| Starvation-aware fill (v1.1) | Show fewer rather than stale |
+| CISA KEV integration (v1.1) | Gold standard for "important right now" |
+| `import.meta.env.BASE_URL` for fetches | Portable when `vite.config.ts` base changes |
+| Relative `__dirname` in scripts | Portable across directory moves |
+| Commit JSON to main | Static hosting without a database |
+| Word-boundary keyword compilation (v1.2) | Substring matching misrouted systematically ("apt" → laptop) |
+| First-seen dates for scraped items (v1.2) | Listing pages have no timestamps; hourly re-stamping gamed recency |
+| http(s)-only links, ingest + render (v1.2) | Feed content is untrusted input |
+| Reddit → Lobsters/hnrss (v1.2) | reddit.com blocks GitHub Actions IPs (403/429) |
+| KEV JSON = truth, KEV RSS bridge = display (v1.2) | Third-party bridge can die without breaking scoring |
 
 ---
 
-## 12. Threat model (lightweight)
+## 10. Threat model (lightweight)
 
 | Risk | Mitigation |
 | ---- | ---------- |
-| Malicious RSS content | Titles rendered as text; links are `target="_blank"` + `rel="noopener"` |
-| XSS via JSON | No `dangerouslySetInnerHTML` on article bodies |
+| Malicious RSS content | Text rendering; `rel="noopener"` on links |
+| XSS via JSON | No `dangerouslySetInnerHTML`; article URLs must be `http(s)` at ingest AND at render (v1.2) |
 | Secret leakage | API key only in GitHub Secrets |
-| Supply chain | Pin lockfile; SBOM in `docs/SBOM.md` |
-| Feed outage | Graceful degradation; `feedStats` in payload for monitoring |
+| Supply chain | Lockfile + actions pinned to commit SHAs + Dependabot (v1.2); SBOM in `docs/SBOM.md` |
+| Feed outage | Graceful degradation; `feedStats` + `build:check` + `validate:sources` |
+| Slow-loris feed server | Abort timer covers the body read (v1.2) |

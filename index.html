@@ -2,13 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/cyber-drudge/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Cybersecurity news, Drudge-style. Build-time aggregated headlines across threats, vulnerabilities, threat intel, breaches, and more." />
     <title>CYBER DRUDGE</title>
-    <link rel="preload" href="/cyber-drudge/data/headlines.json" as="fetch" crossorigin="anonymous" />
-    <link rel="preload" href="/cyber-drudge/data/stocks.json" as="fetch" crossorigin="anonymous" />
-    <link rel="preload" href="/cyber-drudge/data/brief.json" as="fetch" crossorigin="anonymous" />
+    <!-- Apply the persisted theme before first paint so light-theme users
+         don't see a dark flash. Keep the key in sync with src/hooks/useTheme.ts. -->
+    <script>
+      (function () {
+        var resolved = "dark";
+        try {
+          var t = localStorage.getItem("cyber-drudge:theme") || "dark";
+          if (t === "light") resolved = "light";
+          else if (t === "system" && !window.matchMedia("(prefers-color-scheme: dark)").matches) resolved = "light";
+        } catch (e) { /* default dark */ }
+        document.documentElement.setAttribute("data-theme", resolved);
+      })();
+    </script>
   </head>
   <body class="bg-bg text-fg">
     <div id="root"></div>

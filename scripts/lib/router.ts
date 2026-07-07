@@ -58,21 +58,42 @@ function diversityCap(totalDistinctSources: number): number {
   return 3;
 }
 
+/**
+ * Compile a keyword into a word-boundary regex. Bare substring matching
+ * misrouted badly ("apt" matched laptop/capture/adaptive). Semantics:
+ *   - whole-word match on both ends by default ("apt" no longer hits "laptop")
+ *   - a trailing "*" opts into prefix matching ("encrypt*" hits "encryption")
+ *   - non-word edge chars (e.g. "cve-") keep matching as written
+ */
+function compileKeyword(kw: string): RegExp {
+  const prefix = kw.endsWith("*");
+  const core = (prefix ? kw.slice(0, -1) : kw).trim();
+  const escaped = core.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const lead = /^\w/.test(core) ? "\\b" : "";
+  const trail = !prefix && /\w$/.test(core) ? "\\b" : "";
+  return new RegExp(lead + escaped + trail, "i");
+}
+
+const COMPILED_KEYWORDS = KEYWORDS.map((rule) => ({
+  routeTo: rule.routeTo,
+  patterns: rule.match.map(compileKeyword),
+}));
+
 /** Find every category an article belongs in (home + keyword matches). */
 function routeArticle(a: Article): Set<string> {
   const cats = new Set<string>([a.category]);
   if (KEYWORD_AGNOSTIC_SOURCES.has(a.source)) return cats;
 
-  const hay = `${a.title} ${a.snippet ?? ""}`.toLowerCase();
-  for (const rule of KEYWORDS) {
-    if (rule.match.some((kw) => hay.includes(kw))) {
+  const hay = `${a.title} ${a.snippet ?? ""}`;
+  for (const rule of COMPILED_KEYWORDS) {
+    if (rule.patterns.some((re) => re.test(hay))) {
       cats.add(rule.routeTo);
     }
   }
   return cats;
 }
 
-const CVE_RE = /\bCVE-\d{4}-\d{4,7}\b/gi;
+const CVE_RE = /\bCVE-\d{4}-\d{4,7}\b/g;
 
 export function routeAll(
   rawArticles: Article[],
@@ -93,9 +114,12 @@ export function routeAll(
 
   // KEV + display-priority elevation pass. KEV flag flows into score via
   // importanceBoost and into elevatePriority for the displayed tier.
+  // NOTE: hay is uppercased so CVE_RE (uppercase literal, digits are
+  // case-invariant) matches directly. Never derive a regex by uppercasing
+  // .source — that turns \b into \B and \d into \D and matches nothing.
   const tagged = clamped.map((a) => {
     const hay = `${a.title} ${a.snippet ?? ""}`.toUpperCase();
-    const cves = hay.match(new RegExp(CVE_RE.source.toUpperCase(), "g")) ?? [];
+    const cves = hay.match(CVE_RE) ?? [];
     const kev = cves.some((c) => kevSet.has(c));
     const elevated = elevatePriority({ ...a, kev });
     return { ...a, kev: kev || undefined, priority: elevated };
@@ -118,8 +142,13 @@ export function routeAll(
   const trending = computeTrending(allRouted, now);
 
   const categories: CategoryBucket[] = [];
-  let leadCandidate: GroupedArticle | null = null;
-  let leadCandidateScore = -Infinity;
+  // Track best fresh and best stale candidates separately so selection is
+  // order-independent: any fresh candidate beats every stale one, no matter
+  // which category was processed first.
+  let leadFresh: GroupedArticle | null = null;
+  let leadFreshScore = -Infinity;
+  let leadStale: GroupedArticle | null = null;
+  let leadStaleScore = -Infinity;
 
   for (const def of CATEGORIES) {
     const pool = byCat.get(def.id) ?? [];
@@ -152,17 +181,19 @@ export function routeAll(
 
     const counts = new Map<string, number>();
     const visible: GroupedArticle[] = [];
-    const pick = (list: GroupedArticle[]) => {
+    const pick = (list: GroupedArticle[], limit: number) => {
       for (const g of list) {
-        if (visible.length >= 12) break;
+        if (visible.length >= limit) break;
         const c = counts.get(g.source) ?? 0;
         if (c >= cap) continue;
         counts.set(g.source, c + 1);
         visible.push(g);
       }
     };
-    pick(fresh);
-    if (visible.length < MIN_VISIBLE) pick(stale);
+    pick(fresh, 12);
+    // Stale items only top a thin section up to MIN_VISIBLE — never fill a
+    // section to the brim with out-of-window leftovers.
+    if (visible.length < MIN_VISIBLE) pick(stale, MIN_VISIBLE);
 
     categories.push({
       id: def.id,
@@ -174,21 +205,22 @@ export function routeAll(
     });
 
     for (const g of groupedAll) {
-      // Lead story: must be within LEAD_MAX_AGE_HOURS; fall back to overall
-      // top only if no fresh candidate exists.
-      const isFresh = ageHours(g.publishedAt, now) <= LEAD_MAX_AGE_HOURS;
-      if (!isFresh && leadCandidate) continue;
       const sc = scoreOf(g, now);
-      if (sc > leadCandidateScore) {
-        leadCandidate = g;
-        leadCandidateScore = sc;
+      if (ageHours(g.publishedAt, now) <= LEAD_MAX_AGE_HOURS) {
+        if (sc > leadFreshScore) {
+          leadFresh = g;
+          leadFreshScore = sc;
+        }
+      } else if (sc > leadStaleScore) {
+        leadStale = g;
+        leadStaleScore = sc;
       }
     }
   }
 
-  // If the lead candidate is older than LEAD_MAX_AGE_HOURS (only happens when
-  // the whole corpus is stale), accept it as-is rather than showing nothing.
-  return { categories, trending, leadStory: leadCandidate };
+  // Prefer the best fresh lead; fall back to the best stale one only when
+  // the whole corpus is stale (better than showing nothing).
+  return { categories, trending, leadStory: leadFresh ?? leadStale };
 }
 
 function scoreOf(

@@ -1,60 +1,51 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { Article, GroupedArticle } from "../lib/types";
 import { timeAgo, fullStamp } from "../lib/timeAgo";
 
 /**
  * src/components/HoverCard.tsx
  * ----------------------------
- * Fixed-position preview card. The parent owns the hovered article; we just
- * render it. A 200ms hide delay is implemented by the caller via
- * `onRequestHide` — here we only display and position.
+ * Fixed-position preview card. Purely presentational: the parent (App) owns
+ * the hovered article AND the show/hide delay timer. Entering the card
+ * cancels the pending hide; leaving it re-schedules; tapping/clicking
+ * anywhere outside dismisses immediately (touch devices have no mouseleave).
  */
 export function HoverCard(props: {
   article: Article | GroupedArticle | null;
   anchorRect: DOMRect | null;
+  onCancelHide: () => void;
+  onScheduleHide: () => void;
   onRequestHide: () => void;
 }) {
-  const [visible, setVisible] = useState(false);
-  const hideTimer = useRef<number | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const { article, onRequestHide } = props;
 
   useEffect(() => {
-    if (hideTimer.current) {
-      window.clearTimeout(hideTimer.current);
-      hideTimer.current = null;
-    }
-    if (props.article) setVisible(true);
-  }, [props.article]);
+    if (!article) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (cardRef.current && e.target instanceof Node && cardRef.current.contains(e.target)) return;
+      onRequestHide();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [article, onRequestHide]);
 
   if (!props.article || !props.anchorRect) return null;
-  if (!visible) return null;
 
   const a = props.article;
-  const top = Math.min(
-    props.anchorRect.bottom + 6,
-    window.innerHeight - 220
-  );
-  const left = Math.min(
-    Math.max(8, props.anchorRect.left),
-    window.innerWidth - 380
-  );
+  const top = Math.max(8, Math.min(props.anchorRect.bottom + 6, window.innerHeight - 220));
+  // Clamp within the viewport; Math.max last so narrow (mobile) widths pin
+  // to the left edge instead of going negative.
+  const left = Math.max(8, Math.min(props.anchorRect.left, window.innerWidth - 368));
   const related = "related" in a ? a.related : [];
 
   return (
     <div
+      ref={cardRef}
       className="hover-card p-3"
-      style={{ top, left }}
-      onMouseEnter={() => {
-        if (hideTimer.current) {
-          window.clearTimeout(hideTimer.current);
-          hideTimer.current = null;
-        }
-      }}
-      onMouseLeave={() => {
-        hideTimer.current = window.setTimeout(() => {
-          setVisible(false);
-          props.onRequestHide();
-        }, 200);
-      }}
+      style={{ top, left, maxWidth: "min(360px, calc(100vw - 16px))" }}
+      onMouseEnter={props.onCancelHide}
+      onMouseLeave={props.onScheduleHide}
     >
       <div className="text-[11px] mono text-[var(--color-muted)] flex items-center gap-2">
         <span className="source-badge siren">{a.source}</span>

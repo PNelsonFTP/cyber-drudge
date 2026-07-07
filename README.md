@@ -12,29 +12,32 @@ Full technical documentation lives in [`docs/`](./docs/README.md):
 
 | Document | Description |
 | -------- | ----------- |
-| [Architecture](./docs/ARCHITECTURE.md) | System design, data flow, ranking, deployment |
+| [Architecture](./docs/ARCHITECTURE.md) | System design, data flow, scoring, deployment |
 | [SBOM](./docs/SBOM.md) | Software Bill of Materials |
+| [Migration](./docs/MIGRATION.md) | **New computer, directory, repo rename, custom domain** |
 | [Handoff](./docs/HANDOFF.md) | Operations runbook for maintainers |
-| [Future improvements](./docs/FUTURE-IMPROVEMENTS.md) | Next upgrade cycle backlog |
-| [Changelog](./docs/CHANGELOG.md) | Release and change history |
+| [Future improvements](./docs/FUTURE-IMPROVEMENTS.md) | Next upgrade cycle backlog (12+ items) |
+| [Changelog](./docs/CHANGELOG.md) | Release history (v1.0.0 → v1.2.0) |
 
 ## Stack
 
 - Vite 6 + React 19 + TypeScript 5.9
 - Tailwind v4 (via `@tailwindcss/vite`)
-- `fast-xml-parser` (build-time only — never bundled)
+- `fast-xml-parser` v5 (build-time only — never bundled)
 - `tsx` for build scripts
-- GitHub Pages + GitHub Actions
+- GitHub Pages + GitHub Actions (Node 24, SHA-pinned actions, Dependabot)
+
+**Sources:** 91 RSS/Atom feeds + 1 HTML scrape + CISA KEV, across 18 categories.
 
 ## Develop
 
 ```bash
 npm install
 npm run build:data     # fetch feeds, write public/data/*.json
-npm run dev            # local dev server
+npm run dev            # local dev server → http://localhost:5173/cyber-drudge/
 ```
 
-Open the URL Vite prints (typically http://localhost:5173).
+Open **`http://localhost:5173/cyber-drudge/`** (Vite `base` includes the repo name).
 
 ## Deploy
 
@@ -57,6 +60,12 @@ Edit `scripts/sources.ts` only. Find the right category block and append a line:
 ```
 
 That's it. The hourly cron picks it up on the next run. No other file needs to change.
+
+Then validate the whole source list live (HTTP, XML shape, item count, staleness):
+
+```bash
+npm run validate:sources
+```
 
 ### Categories
 
@@ -88,16 +97,17 @@ The 18 categories live in `scripts/sources.ts` (`CATEGORIES`). Common ones:
 Articles are placed in their feed's home category plus any category whose keyword list matches title+summary. To add a rule, edit the `KEYWORDS` array in `scripts/sources.ts`:
 
 ```ts
-{ match: ["my keyword", "another"], routeTo: "vulnerabilities" },
+{ match: ["my keyword", "prefix*"], routeTo: "vulnerabilities" },
 ```
 
-Sources listed in `KEYWORD_AGNOSTIC_SOURCES` (e.g. `r/netsec`, `r/cybersecurity`) skip keyword routing — their generic titles match too broadly.
+Keywords match **whole words** (case-insensitive); a trailing `*` enables prefix matching (`"encrypt*"` matches *encrypted*, *encryption*). Sources listed in `KEYWORD_AGNOSTIC_SOURCES` (community aggregators and digests like Lobsters, HN, This Week in 4n6) skip keyword routing — their generic titles match too broadly.
 
 ## Quality bar
 
-- `npm run typecheck` exits 0.
-- `npm run build` produces a `dist/` under ~72KB gzipped JS+CSS (excluding JSON).
+- `npm run typecheck` exits 0; `npm audit` reports 0 vulnerabilities.
+- `npm run build` produces a `dist/` under ~75KB gzipped JS+CSS (excluding JSON).
 - `npm run build:data` produces a `headlines.json` with zero HTML entities in any title.
+- `npm run validate:sources` shows no FAIL entries (STALE is a warning — some quality sources post monthly).
 - Every section has at least 2 distinct sources; every source is capped at 6 items globally.
 
 ## Architecture notes (the one rule)
@@ -120,45 +130,28 @@ Always `git pull --rebase` before pushing — the cron may have committed since 
 
 ```
 .
-├── .github/workflows/refresh.yml     # hourly cron -> build:data -> commit -> deploy
-├── index.html
-├── package.json
-├── tsconfig.json
-├── vite.config.ts                    # base path matches repo name
+├── docs/                             # Full documentation (start at docs/README.md)
+├── .github/
+│   ├── workflows/refresh.yml         # typecheck -> build:data -> build:check -> deploy
+│   └── dependabot.yml                # weekly npm + actions updates
+├── index.html                        # %BASE_URL% placeholders — no hard-coded paths
+├── vite.config.ts                    # base path — the only file that embeds the repo name
 ├── scripts/
-│   ├── sources.ts                    # FEEDS + CATEGORIES + KEYWORDS (user edits this)
+│   ├── sources.ts                    # ★ feeds, categories, age windows, keywords
+│   ├── build-data.ts                 # orchestrator
+│   ├── fetch-feeds.ts
+│   ├── fetch-kev.ts                  # CISA KEV catalog
+│   ├── fetch-stocks.ts
+│   ├── scrape-sources.ts
+│   ├── generate-brief.ts
+│   ├── check-data.ts                 # npm run build:check
+│   ├── validate-sources.ts           # npm run validate:sources (live link checks)
 │   ├── types.ts
-│   ├── fetch-feeds.ts                # parallel RSS w/ timeouts, retry, UA rotation
-│   ├── scrape-sources.ts             # HTML scraper for no-RSS sites
-│   ├── fetch-stocks.ts               # CRWD, PANW, S, FTNT, ZS, OKTA, SNET
-│   ├── generate-brief.ts             # LLM brief if ANTHROPIC_API_KEY set, else curated
-│   ├── build-data.ts                 # orchestrator -> writes public/data/*.json
 │   └── lib/
-│       ├── timeAgo.ts                # 9 date-extraction patterns
-│       ├── groupStories.ts           # Jaccard >=0.4 same-story clustering
-│       └── router.ts                 # global cap (6), keyword routing, trending
-├── public/
-│   ├── favicon.svg
-│   └── data/                         # generated: headlines.json, stocks.json, brief.json
-└── src/
-    ├── App.tsx                       # 3-column Drudge layout, 3 views
-    ├── main.tsx
-    ├── styles.css                    # Tailwind v4 import + Drudge typography
-    ├── components/
-    │   ├── Header.tsx
-    │   ├── StockTicker.tsx
-    │   ├── DailyBrief.tsx
-    │   ├── Trending.tsx
-    │   ├── LeadStory.tsx
-    │   ├── CategoryColumn.tsx
-    │   ├── Headline.tsx
-    │   ├── HoverCard.tsx
-    │   └── ManageMutes.tsx
-    ├── hooks/
-    │   ├── useLocalStorageSet.ts     # powers bookmarks, queue, muted sources/cats
-    │   ├── useHeadlines.ts           # stale-while-revalidate
-    │   └── useTheme.ts               # dark/light/system
-    └── lib/
-        ├── types.ts
-        └── timeAgo.ts                # client-side display formatter
+│       ├── score.ts                  # shared ranking
+│       ├── router.ts
+│       ├── groupStories.ts
+│       └── timeAgo.ts
+├── public/data/                      # generated JSON (committed by cron)
+└── src/                              # React SPA
 ```

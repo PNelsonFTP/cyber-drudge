@@ -67,8 +67,10 @@ export function parseFeedDate(raw: string | undefined | null): number {
     if (!isNaN(d.getTime())) return d.getTime();
   }
 
-  // 3. RFC822
-  const rfc = input.match(/,\s*\d{1,2}\s+\w+\s+\d{4}\s+\d{2}:\d{2}(:\d{2})?\s*[A-Z]+/);
+  // 3. RFC822 — zone may be alphabetic ("GMT", "EST") or numeric ("+0000",
+  // "-0500"). The old pattern only accepted letters, so numeric-offset dates
+  // fell through to the day-first branch and were truncated to midnight UTC.
+  const rfc = input.match(/,\s*\d{1,2}\s+\w+\s+\d{4}\s+\d{2}:\d{2}(:\d{2})?\s*([A-Z]+|[+-]\d{4})/);
   if (rfc) {
     const d = new Date(input.replace(/^[^,]+,\s*/, ""));
     if (!isNaN(d.getTime())) return d.getTime();

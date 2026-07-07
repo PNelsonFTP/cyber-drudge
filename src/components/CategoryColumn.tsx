@@ -36,6 +36,8 @@ export function CategoryColumn(props: {
         <button
           className="md:hidden mono text-xs text-[var(--color-muted)] caret-toggle"
           aria-label={expanded ? "Collapse section" : "Expand section"}
+          aria-expanded={expanded}
+          aria-controls={`section-${bucket.id}`}
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? "\u25BE" : "\u25B8"}
@@ -66,7 +68,7 @@ export function CategoryColumn(props: {
           </button>
         </div>
       </header>
-      <div className={`${expanded ? "block" : "hidden"} md:block`}>
+      <div id={`section-${bucket.id}`} className={`${expanded ? "block" : "hidden"} md:block`}>
         {visible.length === 0 ? (
           <div className="px-1 py-2 text-[12px] text-[var(--color-muted)]">
             No items.

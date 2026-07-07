@@ -31,15 +31,7 @@ const USER_AGENTS = [
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
-  // The fast-xml-parser default of 1000 entity expansions silently drops
-  // legitimate Atom feeds (GitHub releases, Reddit). Raise every cap.
-  processEntities: {
-    enabled: true,
-    maxEntitySize: 100_000,
-    maxTotalExpansions: 100_000,
-    maxExpandedLength: 1_000_000,
-    maxEntityCount: 100_000,
-  },
+  processEntities: true,
 });
 
 export interface FetchFeedsResult {
@@ -68,6 +60,7 @@ async function fetchOne(feed: (typeof FEEDS)[number]): Promise<{
   let lastErr: string | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) await sleep(1000 * attempt); // brief backoff before retrying
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), PER_FEED_TIMEOUT_MS);
     try {
@@ -77,14 +70,19 @@ async function fetchOne(feed: (typeof FEEDS)[number]): Promise<{
         headers: {
           "User-Agent": USER_AGENTS[attempt % USER_AGENTS.length],
           Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+          ...feed.headers,
         },
       });
-      clearTimeout(t);
       if (!res.ok) {
+        clearTimeout(t);
         lastErr = `HTTP ${res.status}`;
         continue;
       }
+      // Keep the abort timer armed through the body read — a server that
+      // returns headers fast but streams the body slowly must not be able
+      // to stall the hourly build past the per-feed budget.
       body = await res.text();
+      clearTimeout(t);
       break;
     } catch (e) {
       clearTimeout(t);
@@ -113,7 +111,11 @@ async function fetchOne(feed: (typeof FEEDS)[number]): Promise<{
     const items = extractItems(parsed);
     const articles: Article[] = [];
     const isGitHubRelease = feed.type === "github-release";
-    for (const item of items.slice(0, cap)) {
+    // Walk ALL items and stop once `cap` articles survive the filters —
+    // slicing first made filtered-out items count against the cap and
+    // under-filled feeds with noisy leading entries.
+    for (const item of items) {
+      if (articles.length >= cap) break;
       const rawTitle = str(item.title);
       let title = decodeEntities(stripHtml(rawTitle)).trim();
       if (!title) continue;
@@ -125,8 +127,10 @@ async function fetchOne(feed: (typeof FEEDS)[number]): Promise<{
       } else if (isReleaseNoise(title)) {
         continue;
       }
-      const link = pickLink(item.link);
+      const link = pickLink(item.link)?.trim();
       if (!link) continue;
+      // Feed-controlled URLs land in <a href> — only ever emit http(s).
+      if (!/^https?:\/\//i.test(link)) continue;
       const snippetRaw = str(item.summary ?? item.description ?? item.content);
       const snippet = decodeEntities(stripHtml(snippetRaw)).trim().slice(0, 400);
       articles.push({
@@ -176,16 +180,20 @@ function asArray(x: unknown): unknown[] {
   return Array.isArray(x) ? x : [x];
 }
 
-/** Atom <link href="..."/> becomes @_href after attribute prefixing. */
+/** Atom <link href="..."/> becomes @_href after attribute prefixing.
+ *  Blogger/Jekyll Atom feeds emit multiple <link> elements per entry
+ *  (rel="replies" comment feeds first!) — always prefer rel="alternate",
+ *  falling back to the first href only when no alternate exists. */
 function pickLink(linkField: unknown): string | undefined {
   if (!linkField) return undefined;
   if (typeof linkField === "string") return linkField;
   if (Array.isArray(linkField)) {
-    const href = linkField.find((l) => l && typeof l === "object" && (l as Record<string, unknown>)["@_href"]);
-    if (href && typeof href === "object") {
-      return (href as Record<string, unknown>)["@_href"] as string;
-    }
-    return undefined;
+    const links = linkField.filter(
+      (l): l is Record<string, unknown> =>
+        !!l && typeof l === "object" && typeof (l as Record<string, unknown>)["@_href"] === "string"
+    );
+    const alternate = links.find((l) => l["@_rel"] === "alternate" || l["@_rel"] === undefined);
+    return (alternate ?? links[0])?.["@_href"] as string | undefined;
   }
   if (typeof linkField === "object") {
     const obj = linkField as Record<string, unknown>;
@@ -205,8 +213,13 @@ function str(v: unknown): string {
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   if (Array.isArray(v)) return v.map(str).join(" ");
   if (typeof v === "object") {
-    // Some Atom feeds put the text inside { _: "..." } or { text: "..." }
+    // Attribute-bearing elements (e.g. Atom <title type="html">) parse to
+    // { "#text": "...", "@_type": "html" } — fast-xml-parser's default
+    // textNodeName is "#text". Missing this dropped every Blogger/Jekyll
+    // Atom article (Google Project Zero, Google Online Security).
     const obj = v as Record<string, unknown>;
+    if (typeof obj["#text"] === "string") return obj["#text"];
+    if (typeof obj["#text"] === "number") return String(obj["#text"]);
     if (typeof obj._ === "string") return obj._;
     if (typeof obj.text === "string") return obj.text;
     if (typeof obj["@_value"] === "string") return obj["@_value"];
@@ -267,4 +280,8 @@ function hashId(s: string): string {
     h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   }
   return (h >>> 0).toString(36);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }

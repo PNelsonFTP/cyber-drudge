@@ -1,7 +1,7 @@
 {
   "name": "cyber-drudge",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,10 +9,11 @@
     "preview": "vite preview",
     "build:data": "tsx scripts/build-data.ts",
     "build:check": "tsx scripts/check-data.ts",
+    "validate:sources": "tsx scripts/validate-sources.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "fast-xml-parser": "^4.5.1",
+    "fast-xml-parser": "^5.9.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

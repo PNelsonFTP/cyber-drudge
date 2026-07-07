@@ -100,56 +100,99 @@ Ten visual/interaction alignments with [AI-Drudge](https://pnelsonftp.github.io/
 
 ---
 
-## [Unreleased]
+## [1.1.0] — 2026-06-22
 
-### Implemented — Freshness, importance, and source-quality upgrade (2026-06-22)
+Major upgrade: freshness, importance scoring, source quality, and guardrails. See [UPGRADE-PLAN.md](./UPGRADE-PLAN.md) for the original plan.
 
-Built the full plan in [`UPGRADE-PLAN.md`](./UPGRADE-PLAN.md).
+### Added
+- `scripts/lib/score.ts` — shared ranking (priority + importance × recency)
+- `scripts/fetch-kev.ts` — CISA Known Exploited Vulnerabilities catalog
+- `scripts/check-data.ts` — `npm run build:check` health gate
+- 15 new RSS feeds; `github-release` feed type for SECURITY TOOLS
+- NEW / KEV UI badges; masthead "updated Xm ago"
+- [MIGRATION.md](./MIGRATION.md) — portability and rename guide
 
-**Freshness (Phase 1):**
-- Recency half-life shortened 72h → 48h.
-- Per-category age windows replace the single 14-day cap (fast lanes 5d hard / 2d soft; standard 10d/4d; slow 14d/7d).
-- Starvation-aware visible fill: only backfills stale items when a section would drop below `MIN_VISIBLE = 4`.
-- Trending freshness gate (≤72h) and lead-story freshness gate (≤96h).
+### Changed
+- Recency half-life 72h → 48h
+- Per-category `softAgeHours` / `maxAgeHours` replace global 14-day cap
+- Starvation-aware visible fill (`MIN_VISIBLE = 4`)
+- Trending gate ≤72h; lead preference ≤96h
+- CI: typecheck + build:check steps
 
-**Importance (Phase 2):**
-- Shared `scripts/lib/score.ts` — single source of truth (eliminates the duplicate scorer in router/groupStories).
-- Keyword importance boosts: actively-exploited, zero-day, CVSS 9–10, ransomware, mass-record breaches, etc. (recency-gated, capped at 2.5).
-- CISA KEV integration (`scripts/fetch-kev.ts`): articles referencing a KEV CVE are flagged `kev`, boosted, and may have display priority elevated to critical/high.
+### Removed
+- 7 dead feeds (Daily Swig, Mandiant, Trend Micro, HackerOne, SC Media, trickest, r/AskNetsec)
 
-**Sources (Phase 3):**
-- Pruned 7 dead/empty feeds (PortSwigger Daily Swig discontinued, Mandiant, Trend Micro, HackerOne, SC Media, trickest, r/AskNetsec).
-- Repointed Google Project Zero to verified working feed.
-- Added 16 live-validated feeds (SANS ISC, Risky Business, Securityaffairs, Securelist, Malwarebytes, watchTowr, ZDI blog + advisories, Google Online Security, JFrog, AWS Security, Sysdig, Cloudflare, HIBP, ProjectDiscovery blog, The DFIR Report).
-- Fixed SECURITY TOOLS: `github-release` feed type synthesizes meaningful titles so the noise filter doesn't strip them.
-- Parser hardening: rejects HTML bodies before XML parsing (root cause of "Maximum nested tags exceeded" and silent EMPTY results).
-
-**UI (Phase 4):**
-- NEW badge (<6h), KEV badge (CISA actively exploited), opacity de-emphasis (>72h).
-- Masthead shows "updated Xm ago"; Lead Story shows full UTC timestamp.
-- KEV badges on Trending and Lead Story.
-
-**Guardrails (Phase 5):**
-- `scripts/check-data.ts` + `npm run build:check` — feed health, per-category freshness/diversity, entity-leak scan, per-source cap. Warn by default, `--strict` to fail.
-- CI: `npm run typecheck` and `npm run build:check` added to `.github/workflows/refresh.yml`.
-
-**Validation (live, 2026-06-22):** All CI steps passed on first push (Typecheck, Build data w/ KEV, Data health check, Build site, Deploy).
-
-Measured before → after (live `headlines.json`):
-
-| Metric | Before | After |
-|--------|--------|-------|
-| Feed health | 46/51 (90%) | 58/59 (98%) |
-| Visible articles 7d+ old | 27% (32) | **2% (2)** |
-| Lead story age | 17.4h | **0.0h** (fresh CISA KEV story) |
-| `data_breaches` sources | thin | 4 |
-| `cloud_security` sources | thin | 4 |
-| `security_tools` items | 0 (dead feeds) | 4 items / 3 sources |
-
-`tsc --noEmit` green; production bundle 67.5 KB gzipped (flat vs. baseline). Network-bound `build:data` runs on the GitHub Actions runner (live feed fetches are blocked in some local dev sandboxes).
+### Metrics (live)
+- Feed health: 90% → 98%
+- Visible articles 7d+ old: 27% → 2%
+- Lead story: 17.4h stale → fresh CISA KEV story
 
 ---
 
-- Added [UPGRADE-PLAN.md](./UPGRADE-PLAN.md): a build-ready implementation plan for the next cycle — per-category freshness windows, shorter recency half-life, starvation-aware fill, importance/CISA-KEV scoring, and a source-quality overhaul (prune 7 dead feeds, add 16 live-validated sources, fix the SECURITY TOOLS feeds). Intended for a follow-up build agent.
+## [1.2.0] — 2026-07-07
 
-See [FUTURE-IMPROVEMENTS.md](./FUTURE-IMPROVEMENTS.md) for the broader backlog.
+Full-project overhaul: every source link validated live, 53 audit findings verified and fixed, 35 new curated sources added (all feed URLs fetch-verified), CI hardened, docs refreshed.
+
+### Fixed — ranking & routing (most impactful first)
+- **KEV detection was completely dead** — `router.ts` built the CVE regex by uppercasing its source, turning `\b`→`\B` and `\d`→`\D` so no CVE ever matched. 0 of 279 live articles carried KEV flags despite a 1,631-CVE catalog. First rebuild after the fix: 8 KEV-flagged articles.
+- **Google Project Zero / Google Online Security extracted 0 articles** — two parser bugs: `str()` never read fast-xml-parser's default `#text` node (Atom `<title type="html">`), and `pickLink()` took the *first* href in Blogger's link arrays (the `rel="replies"` comments feed). Fixed both; P0 also re-pointed to its new home `projectzero.google/feed.xml`.
+- **Keyword router matched raw substrings** — "apt" hit laptop/capture/adaptive; "crypto" pulled cryptocurrency crime into CRYPTO & PQC; "research" routed almost everything into BUG BOUNTY. Keywords now compile to word-boundary regexes with an explicit `*` suffix for prefix matching; the unmatchable `"b ec "` rule became `"bec"`.
+- **Scraped articles were re-stamped `Date.now()` every hourly run** — permanent freshness inflation for CrowdStrike items. First-seen timestamps now persist across runs via the previous `headlines.json`.
+- **Stock daily change was wrong twice over** — `chartPreviousClose` with `range=5d` is the close ~6 sessions ago, and the fallback read the *current* bar. Reference is now the second-to-last non-null daily bar.
+- **RFC822 dates with numeric zones ("+0000") truncated to midnight UTC** — the day-first branch intercepted them; the RFC822 pattern now accepts numeric offsets.
+- **Lead story selection was order-dependent** — a stale high-scorer seeded early could beat fresh candidates. Fresh and stale candidates now tracked separately; fresh always wins.
+- Stale backfill now tops thin sections up to `MIN_VISIBLE` (4) only, instead of filling to 12 with out-of-window leftovers.
+- Per-feed item cap applies after noise filtering, so filtered items no longer under-fill feeds.
+- `check-data` entity-leak regex now catches mid-string leaks.
+
+### Fixed — pipeline robustness
+- Per-feed 8s timeout now covers the **body read**, not just headers (a slow-streaming server could previously hang the hourly build indefinitely — reproduced locally).
+- Zero-width regex matches in the scraper can no longer infinite-loop; relative hrefs resolve against the listing URL (not origin) and non-http(s) results are dropped.
+- Retry now backs off 1s before the second attempt.
+- Feed-controlled URLs are rejected at ingest unless `http(s)` (XSS hardening), with a matching render-time guard in `Headline.tsx`.
+
+### Fixed — UI
+- **Theme flash**: persisted theme now applies pre-hydration via an inline script in `index.html`.
+- **Hover card**: dismisses when the pointer leaves the headline (previously stuck open unless the pointer entered the card), dismisses on tap-outside for touch devices, and clamps within narrow viewports.
+- Header bookmark/queue counts now reflect resolvable articles, not orphaned IDs.
+- Data revalidates when the tab regains visibility and every 15 minutes (long-lived tabs no longer freeze at "updated Xm ago").
+- Accessibility: manage-mutes modal gained dialog semantics + Escape + initial focus; mobile accordion carets expose `aria-expanded`/`aria-controls`; mute buttons are visible on keyboard focus.
+
+### Added — sources (net +35, all URLs fetch-verified before inclusion)
+- **Repaired/replaced:** Project Zero → projectzero.google; r/netsec → **Lobsters Security**; r/cybersecurity → **HN Security 30+** (hnrss.org filtered; reddit.com 403/429s GitHub Actions IPs).
+- **Incident response / DFIR:** The DFIR Report, This Week in 4n6, Sygnia, Volexity, Google Threat Intelligence (Mandiant).
+- **AI security:** Embrace The Red, Simon Willison (security tag), NVIDIA AI Security.
+- **ICS/OT:** CISA ICS Advisories, Industrial Cyber (via per-feed header support), Dale Peterson.
+- **Identity:** SpecterOps, Permiso, dirkjanm.io, Entra.News.
+- **Breach/fraud:** DataBreaches.net, TechCrunch Security, InfoStealers, Proofpoint Threat Insight, Cofense, FBI IC3 PSAs.
+- **Vuln/offense:** CERT/CC Vulnerability Notes, CISA KEV Additions (RSS bridge), Horizon3.ai, Searchlight Cyber (Assetnote), TrustedSec.
+- **Cloud/TI:** Datadog Security Labs, Group-IB.
+- **Policy/market:** SEC Press Releases, NIST Cybersecurity Insights, Return on Security, Help Net Security, tl;dr sec.
+- Notable rejections (documented in the research sweep): Kaspersky ICS CERT and PT SWARM on provenance grounds for a US-regulated firm; ~55 others for marketing mix, redundancy, or dead feeds.
+
+### Added — tooling & CI
+- `scripts/validate-sources.ts` + `npm run validate:sources` — live-checks every feed, scrape target, KEV endpoint, and stock ticker (HTTP, XML validity, item count, newest-item age; `--strict` exits 1).
+- Per-feed `headers` option in `FeedDef`.
+- Dependabot (npm weekly grouped + GitHub Actions).
+- CI: Node 20 → **24**, `timeout-minutes: 15`, actions pinned to commit SHAs, `github-pages` environment declared, `git pull --rebase` before the data commit push.
+- `index.html` uses `%BASE_URL%` — renaming the repo now touches `vite.config.ts` only; removed the preload hints that double-downloaded all three JSON files.
+
+### Changed
+- `fast-xml-parser` 4.5.6 → **5.9.3** (clears GHSA-gh4j-gqv2-49f6; `npm audit` now 0 vulnerabilities).
+- `incident_response` moved from the fast lane to the standard lane (96h/240h) — DFIR write-ups publish days after the intrusion.
+- CISA Advisories re-homed from POLICY & REGULATION to VULNERABILITIES; "cisa" keyword rule dropped.
+- NETWORK & ENDPOINT keywords now include appliance/vendor terms (firewall, vpn, Fortinet, Ivanti, Citrix, Palo Alto, F5, NetScaler).
+- Stock tickers: removed SNET (never existed) and CYBR (delisted post-acquisition); added TENB, NET.
+- Brief generator model: `claude-3-5-haiku-latest` → `claude-haiku-4-5-20251001`.
+
+### Metrics (first rebuild after upgrade)
+- Sources: 59 → **92** (91 feeds + 1 scrape); fetch success 91/92 (99%) — the one failure is a local-IP 403 that passes in CI.
+- Articles per run: ~600 → **908**; all 18 categories populated (was: 5 categories starved with ≤1 source).
+- KEV-flagged articles: 0 → 8; `npm audit`: 1 moderate → 0.
+- Bundle: ~73 KB gzipped (JS+CSS), within the ~72 KB quality bar.
+
+---
+
+## [Unreleased]
+
+See [FUTURE-IMPROVEMENTS.md](./FUTURE-IMPROVEMENTS.md) for the next cycle backlog.

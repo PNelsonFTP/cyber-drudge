@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Header, type View } from "./components/Header";
 import { StockTicker } from "./components/StockTicker";
 import { DailyBrief } from "./components/DailyBrief";
@@ -67,12 +67,28 @@ export default function App() {
     return dedupeById(out);
   }, [queue.items, data]);
 
+  // The hide timer lives here so leaving a headline dismisses the card even
+  // when the pointer never enters it; entering the card cancels the timer.
+  const hoverHideTimer = useRef<number | null>(null);
+  const cancelHoverHide = () => {
+    if (hoverHideTimer.current) {
+      window.clearTimeout(hoverHideTimer.current);
+      hoverHideTimer.current = null;
+    }
+  };
+  const hideHoverNow = () => {
+    cancelHoverHide();
+    setHoverArticle(null);
+    setHoverRect(null);
+  };
   const onHover = (a: Article | GroupedArticle, rect: DOMRect) => {
+    cancelHoverHide();
     setHoverArticle(a);
     setHoverRect(rect);
   };
   const onHoverEnd = () => {
-    // The HoverCard handles its own 200ms hide delay via onMouseLeave.
+    cancelHoverHide();
+    hoverHideTimer.current = window.setTimeout(hideHoverNow, 250);
   };
 
   const mutedCount = mutedSources.size + mutedCats.size;
@@ -91,8 +107,8 @@ export default function App() {
       <Header
         view={view}
         setView={setView}
-        bookmarksCount={bookmarks.size}
-        queueCount={queue.size}
+        bookmarksCount={bookmarkedArticles.length}
+        queueCount={queuedArticles.length}
         mutedCount={mutedCount}
         theme={theme}
         onCycleTheme={cycle}
@@ -166,10 +182,9 @@ export default function App() {
       <HoverCard
         article={hoverArticle}
         anchorRect={hoverRect}
-        onRequestHide={() => {
-          setHoverArticle(null);
-          setHoverRect(null);
-        }}
+        onCancelHide={cancelHoverHide}
+        onScheduleHide={onHoverEnd}
+        onRequestHide={hideHoverNow}
       />
 
       <ManageMutes

@@ -40,37 +40,51 @@ export function useHeadlines(): {
 
   useEffect(() => {
     let cancelled = false;
-    setIsStale(true);
 
-    Promise.all([
-      fetchJson<HeadlinesPayload>(`${BASE}data/headlines.json`),
-      fetchJson<StocksPayload>(`${BASE}data/stocks.json`),
-      fetchJson<DailyBrief>(`${BASE}data/brief.json`),
-    ])
-      .then(([h, s, b]) => {
-        if (cancelled) return;
-        if (h) {
-          setHeadlines(h);
-          saveSession(SS_KEYS.headlines, h);
-        }
-        if (s) {
-          setStocks(s);
-          saveSession(SS_KEYS.stocks, s);
-        }
-        if (b) {
-          setBrief(b);
-          saveSession(SS_KEYS.brief, b);
-        }
-      })
-      .catch(() => {
-        // Network failure: if we have cache, keep it silently.
-      })
-      .finally(() => {
-        if (!cancelled) setIsStale(false);
-      });
+    const revalidate = () => {
+      setIsStale(true);
+      Promise.all([
+        fetchJson<HeadlinesPayload>(`${BASE}data/headlines.json`),
+        fetchJson<StocksPayload>(`${BASE}data/stocks.json`),
+        fetchJson<DailyBrief>(`${BASE}data/brief.json`),
+      ])
+        .then(([h, s, b]) => {
+          if (cancelled) return;
+          if (h) {
+            setHeadlines(h);
+            saveSession(SS_KEYS.headlines, h);
+          }
+          if (s) {
+            setStocks(s);
+            saveSession(SS_KEYS.stocks, s);
+          }
+          if (b) {
+            setBrief(b);
+            saveSession(SS_KEYS.brief, b);
+          }
+        })
+        .catch(() => {
+          // Network failure: if we have cache, keep it silently.
+        })
+        .finally(() => {
+          if (!cancelled) setIsStale(false);
+        });
+    };
+
+    revalidate();
+
+    // The cron republishes hourly; a long-lived tab should notice. Refresh
+    // when the tab regains visibility and on a slow interval while open.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") revalidate();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const interval = window.setInterval(revalidate, 15 * 60 * 1000);
 
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(interval);
     };
   }, []);
 

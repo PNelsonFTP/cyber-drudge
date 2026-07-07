@@ -1,7 +1,6 @@
 import { SCRAPE_SOURCES } from "./sources";
 import type { Article, FeedStat, Priority } from "./types";
 import { decodeEntities } from "./fetch-feeds";
-import { parseFeedDate } from "./lib/timeAgo";
 
 /**
  * scripts/scrape-sources.ts
@@ -68,14 +67,23 @@ async function scrapeOne(def: (typeof SCRAPE_SOURCES)[number]): Promise<{
   const articles: Article[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(body)) !== null) {
+    // A zero-width match would otherwise loop forever (empty title hits
+    // `continue`, so the cap-based break is unreachable).
+    if (m.index === re.lastIndex) re.lastIndex++;
     let href = m[1];
     const titleRaw = m[2] ?? "";
     const title = decodeEntities(stripHtml(titleRaw)).trim();
     if (!title || title.length < 8) continue;
-    if (!/https?:\/\//.test(href)) {
-      const base = new URL(def.listingUrl);
-      href = new URL(href, base.origin).toString();
+    if (!/^https?:\/\//i.test(href)) {
+      // Resolve relative hrefs against the LISTING URL (not just its
+      // origin) so path-relative links like "post.html" resolve correctly.
+      try {
+        href = new URL(href, def.listingUrl).toString();
+      } catch {
+        continue;
+      }
     }
+    if (!/^https?:\/\//i.test(href)) continue;
     if (seen.has(href)) continue;
     seen.add(href);
     const snippetGroup = def.snippetGroup;
@@ -93,8 +101,6 @@ async function scrapeOne(def: (typeof SCRAPE_SOURCES)[number]): Promise<{
     });
     if (articles.length >= cap) break;
   }
-  // Avoid infinite-loop on zero-width matches.
-  void parseFeedDate;
   return { articles, stat: { name: def.name, ok: true, count: articles.length } };
 }
 
