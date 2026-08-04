@@ -6,7 +6,7 @@ import { parseFeedDate } from "./lib/timeAgo";
 /**
  * scripts/fetch-feeds.ts
  * ---------------------
- * Parallel RSS/Atom fetcher. Each feed has an 8s timeout, 1 retry, and
+ * Parallel RSS/Atom fetcher. Each feed has a 12s timeout, 1 retry, and
  * rotates User-Agent headers to dodge naive bot blocks. Output is capped at
  * `maxItems` (default 15) per feed.
  *
@@ -18,7 +18,7 @@ import { parseFeedDate } from "./lib/timeAgo";
  *     ("v0.30.4", "b9637") are dropped unless they have >=3 real words.
  */
 
-const PER_FEED_TIMEOUT_MS = 8000;
+const PER_FEED_TIMEOUT_MS = 12_000;
 const PER_FEED_MAX_ITEMS = 15;
 const MAX_RETRIES = 1;
 

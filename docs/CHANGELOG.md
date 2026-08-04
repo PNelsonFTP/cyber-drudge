@@ -7,6 +7,19 @@ Project versioning is informal (1.0.0 = initial production release).
 
 ---
 
+## [Unreleased] — 2026-08-04
+
+### Added — Package Security section
+
+- New **`package_security`** category (PACKAGE SECURITY) covering npm, PyPI, NuGet, RubyGems, Maven, crates.io, containers, and CI/CD package attacks
+- **20 dedicated feeds**: Socket, Step Security, Aikido, GHSA Malware, Sonatype, Snyk, ReversingLabs, JFrog Security Research, GitHub Security, GitHub Supply Chain, PyPI Blog, RubyGems Blog, THN Supply Chain, OpenSSF, Sigstore, Chainguard, Legit Security, Aqua Security, Help Net Security supply-chain tag, HN Package Security
+- Keyword routing for typosquatting, dependency confusion, malicious packages, compromised maintainers, Shai-Hulud, install scripts, and registry names
+- Scoring boosts for supply-chain / malicious-package headlines
+- Per-feed fetch timeout 8s → 12s (fewer flaky HN/Securelist aborts)
+- Sources: 91 → **110** feeds (+ 1 scrape); categories: 18 → **19**
+
+---
+
 ## [1.0.0] — 2026-06-18
 
 ### Added — Initial build (`1bfff44`)

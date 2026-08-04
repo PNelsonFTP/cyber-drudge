@@ -12,8 +12,8 @@
 
 A fully deployed, hourly-refreshed cybersecurity news aggregator at **v1.2.0**:
 
-- **91 RSS/Atom feeds** + 1 HTML scrape + CISA KEV catalog (all 92 sources live-validated 2026-07-07)
-- **18 topic categories** in a 3-column Drudge layout — all populated, none single-source starved
+- **110 RSS/Atom feeds** + 1 HTML scrape + CISA KEV catalog (package-security expansion 2026-08-04)
+- **19 topic categories** in a 3-column Drudge layout — all populated, none single-source starved
 - **Shared scoring** with freshness windows, importance signals, and KEV boosts (KEV detection repaired in v1.2 — it had been silently dead)
 - **Static React SPA** on GitHub Pages
 - **Automated CI** on Node 24 with typecheck, data health check, hourly refresh, SHA-pinned actions, Dependabot, and deploy

@@ -71,6 +71,14 @@ const SIGNALS: ReadonlyArray<{ re: RegExp; boost: number }> = [
   { re: /critical (flaw|vulnerability|bug)|critical security/i,                 boost: 0.7 },
   { re: /ransomware|extortion/i,                                                boost: 0.5 },
   {
+    re: /supply[\s-]chain attack|malicious (npm|pypi|nuget|rubygems|package)|typosquatting|dependency confusion|slopsquatting/i,
+    boost: 1.0,
+  },
+  {
+    re: /compromised (npm|pypi|nuget|package|maintainer)|package malware|open[\s-]source malware/i,
+    boost: 0.9,
+  },
+  {
     re: /\b\d{1,3}(,\d{3})*(\.\d+)?\s*(million|billion|m|bn|k)\b[^.!]{0,40}?(record|user|account|customer|patient|email)/i,
     boost: 0.6,
   },

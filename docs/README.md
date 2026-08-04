@@ -25,7 +25,7 @@ This folder contains the full technical documentation for the Cyber Drudge proje
 | **Data refresh** | Hourly cron (`5 * * * *`) via GitHub Actions (Node 24) |
 | **Health check** | `npm run build:check` |
 | **Source validation** | `npm run validate:sources` (live per-feed checks) |
-| **Sources** | 91 feeds + 1 scrape + CISA KEV, 18 categories |
+| **Sources** | 110 feeds + 1 scrape + CISA KEV, 19 categories |
 | **Runtime** | Static SPA — no server, no database, no live RSS in browser |
 
 ## New machine quick start

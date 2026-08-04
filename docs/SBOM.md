@@ -21,8 +21,8 @@ Regenerate after dependency changes: `npm ci && npm ls --depth=0 && npm audit`
 | Runtime (deployed) | Static HTML/CSS/JS on GitHub Pages |
 | Runtime (build) | Node.js 24 (GitHub Actions), Node 22+ locally |
 | Bundle size (gzipped, excl. JSON) | ~73 KB (JS ~68 KB + CSS ~5 KB + HTML ~0.7 KB) |
-| Feed sources | 91 RSS/Atom + 1 HTML scrape (92 total) |
-| Categories | 18 |
+| Feed sources | 110 RSS/Atom + 1 HTML scrape (111 total) |
+| Categories | 19 |
 | `npm audit` status | **0 vulnerabilities** (as of 2026-07-07) |
 
 ---

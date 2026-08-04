@@ -12,7 +12,7 @@ Cyber Drudge is a static, Drudge-Report-style cybersecurity news aggregator. It 
 
 The system has two phases:
 
-1. **Build-time data pipeline** — Node.js scripts fetch 91 RSS/Atom feeds, scrape one HTML source, pull CISA KEV, route articles into 18 categories, compute trending clusters and a lead story, fetch stock quotes, and optionally generate an LLM brief. Output is three JSON files.
+1. **Build-time data pipeline** — Node.js scripts fetch 110 RSS/Atom feeds, scrape one HTML source, pull CISA KEV, route articles into 19 categories, compute trending clusters and a lead story, fetch stock quotes, and optionally generate an LLM brief. Output is three JSON files.
 2. **Client SPA** — A React app loads those JSON files from GitHub Pages. No live RSS, no backend, no WebSocket refresh.
 
 **The one rule:** The deployed app must never fetch RSS directly.
@@ -147,7 +147,7 @@ score = (priorityRank + importanceBoost) × recencyMultiplier + relatedBonus
 | `MIN_VISIBLE` | 4 | Backfill threshold |
 | `MAX_IMPORTANCE_BOOST` | 2.5 | Cap on additive boost |
 
-**Importance signals (regex on title + snippet):** actively exploited, KEV, zero-day, emergency directive, unauth RCE, CVSS 9–10, critical flaw, ransomware, mass-record breaches.
+**Importance signals (regex on title + snippet):** actively exploited, KEV, zero-day, emergency directive, unauth RCE, CVSS 9–10, critical flaw, ransomware, mass-record breaches, supply-chain / malicious-package attacks (typosquatting, dependency confusion, compromised maintainer).
 
 **KEV boost:** +1.5 when article references a CVE in CISA's catalog.
 
@@ -156,7 +156,7 @@ score = (priorityRank + importanceBoost) × recencyMultiplier + relatedBonus
 | Lane | Categories | softAgeHours | maxAgeHours |
 | ---- | ---------- | ------------ | ----------- |
 | Fast | breaking_threats, phishing_fraud | 48 | 120 (5d) |
-| Standard | incident_response, vulnerabilities, malware, threat_intel, breaches, cloud, network, identity, ai, ics_ot, offense | 96 | 240 (10d) |
+| Standard | incident_response, vulnerabilities, malware, threat_intel, package_security, breaches, cloud, network, identity, ai, ics_ot, offense | 96 | 240 (10d) |
 | Slow | policy, vendor, bug_bounty, security_tools, crypto_pqc | 168 | 336 (14d) |
 
 (`incident_response` moved to the standard lane in v1.2 — DFIR write-ups
@@ -190,11 +190,11 @@ interface Article {
 
 ## 4. Category and column layout
 
-18 categories in three columns (4 / 8 / 6):
+19 categories in three columns (5 / 8 / 6):
 
 | Column | Categories |
 | ------ | ---------- |
-| **Left (4)** | BREAKING THREATS, VULNERABILITIES, MALWARE ANALYSIS, THREAT INTELLIGENCE |
+| **Left (5)** | BREAKING THREATS, VULNERABILITIES, MALWARE ANALYSIS, THREAT INTELLIGENCE, PACKAGE SECURITY |
 | **Center (8)** | DATA BREACHES, PHISHING & FRAUD, CLOUD SECURITY, NETWORK & ENDPOINT, IDENTITY & ACCESS, AI SECURITY, CRYPTO & PQC, ICS/OT SECURITY |
 | **Right (6)** | POLICY & REGULATION, VENDOR & PRODUCT NEWS, INCIDENT RESPONSE, BUG BOUNTY & RESEARCH, SECURITY TOOLS, OFFENSE / RED TEAM |
 

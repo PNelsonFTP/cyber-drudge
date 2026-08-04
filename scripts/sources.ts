@@ -25,6 +25,7 @@ export type CategoryId =
   | "vulnerabilities"
   | "malware_analysis"
   | "threat_intelligence"
+  | "package_security"
   | "data_breaches"
   | "phishing_fraud"
   | "cloud_security"
@@ -86,6 +87,9 @@ export const CATEGORIES: CategoryDef[] = [
   { id: "vulnerabilities",     label: "VULNERABILITIES",      column: "left",   softAgeHours: 96,  maxAgeHours: 240 },
   { id: "malware_analysis",    label: "MALWARE ANALYSIS",     column: "left",   softAgeHours: 96,  maxAgeHours: 240 },
   { id: "threat_intelligence", label: "THREAT INTELLIGENCE",  column: "left",   softAgeHours: 96,  maxAgeHours: 240 },
+  // Package/registry attacks (npm, PyPI, NuGet, etc.) — standard window so
+  // incident write-ups stay visible while campaigns are still unfolding.
+  { id: "package_security",    label: "PACKAGE SECURITY",     column: "left",   softAgeHours: 96,  maxAgeHours: 240 },
   { id: "data_breaches",       label: "DATA BREACHES",        column: "center", softAgeHours: 96,  maxAgeHours: 240 },
   { id: "cloud_security",      label: "CLOUD SECURITY",       column: "center", softAgeHours: 96,  maxAgeHours: 240 },
   { id: "network_endpoint",    label: "NETWORK & ENDPOINT",   column: "center", softAgeHours: 96,  maxAgeHours: 240 },
@@ -110,6 +114,7 @@ export const CATEGORIES: CategoryDef[] = [
 export const KEYWORD_AGNOSTIC_SOURCES = new Set<string>([
   "Lobsters Security",
   "HN Security 30+",
+  "HN Package Security",
   "This Week in 4n6",
   "tl;dr sec",
 ]);
@@ -149,7 +154,6 @@ export const FEEDS: FeedDef[] = [
   { name: "Zero Day Initiative",   url: "https://www.zerodayinitiative.com/blog?format=rss",                  category: "bug_bounty_research", priority: "high" },
   { name: "ZDI Advisories",        url: "https://www.zerodayinitiative.com/rss/published/",                   category: "vulnerabilities",     priority: "high", maxItems: 8 },
   { name: "Google Online Security",url: "https://security.googleblog.com/feeds/posts/default",                category: "vulnerabilities",     priority: "high" },
-  { name: "JFrog Security",        url: "https://jfrog.com/blog/feed/",                                       category: "vulnerabilities",     priority: "normal" },
   { name: "AWS Security Blog",     url: "https://aws.amazon.com/blogs/security/feed/",                        category: "cloud_security",      priority: "normal" },
   { name: "Sysdig",                url: "https://sysdig.com/feed/",                                           category: "cloud_security",      priority: "normal", maxItems: 8 },
   { name: "Cloudflare Blog",       url: "https://blog.cloudflare.com/rss/",                                   category: "cloud_security",      priority: "normal" },
@@ -241,6 +245,34 @@ export const FEEDS: FeedDef[] = [
 
   // Newsletters / digests
   { name: "tl;dr sec",            url: "https://tldrsec.com/feed.xml",                                       category: "security_tools",      priority: "normal", maxItems: 4 },
+
+  // Package managers / software supply chain security
+  // Covers npm, PyPI, NuGet, RubyGems, Maven, crates.io, containers, and CI/CD
+  // package attacks (typosquatting, dependency confusion, compromised maintainers).
+  { name: "Socket",                url: "https://socket.dev/api/feed.atom",                                   category: "package_security",    priority: "critical", maxItems: 12 },
+  { name: "Step Security",         url: "https://www.stepsecurity.io/blog/rss.xml",                           category: "package_security",    priority: "critical", maxItems: 10 },
+  { name: "Aikido Security",       url: "https://www.aikido.dev/blog/rss.xml",                                category: "package_security",    priority: "high", maxItems: 10 },
+  // Third-party GHSA malware RSS bridge (vercel). Fails soft if the bridge dies.
+  { name: "GHSA Malware",          url: "https://github-security-advisory-rss.vercel.app/rss?type=malware",   category: "package_security",    priority: "critical", maxItems: 6 },
+  { name: "Sonatype Blog",         url: "https://blog.sonatype.com/rss.xml",                                  category: "package_security",    priority: "high", maxItems: 10 },
+  { name: "Snyk Blog",             url: "https://snyk.io/blog/feed/",                                         category: "package_security",    priority: "high", maxItems: 10 },
+  // Endor Labs omitted: feed mixes strong attack posts with product "solution
+  // brief" spam that crowds the section (no per-feed include filter yet).
+  { name: "ReversingLabs",         url: "https://www.reversinglabs.com/blog/rss.xml",                         category: "package_security",    priority: "high", maxItems: 10 },
+  { name: "JFrog Security Research", url: "https://jfrog.com/blog/tag/security-research/feed/",               category: "package_security",    priority: "high", maxItems: 10 },
+  { name: "GitHub Security Blog",  url: "https://github.blog/security/feed/",                                 category: "package_security",    priority: "high", maxItems: 10 },
+  { name: "GitHub Supply Chain",   url: "https://github.blog/category/security/supply-chain-security/feed/",  category: "package_security",    priority: "high", maxItems: 8 },
+  { name: "PyPI Blog",             url: "https://blog.pypi.org/feed_rss_created.xml",                         category: "package_security",    priority: "high", maxItems: 8 },
+  { name: "RubyGems Blog",         url: "https://blog.rubygems.org/atom.xml",                                 category: "package_security",    priority: "normal", maxItems: 5 },
+  { name: "THN Supply Chain",      url: "https://thehackernews.com/feeds/posts/default/-/Supply%20Chain%20Security", category: "package_security", priority: "high", maxItems: 10 },
+  // Safeguard (safeguard.sh/feed.xml) omitted: ~5MB feed can hang XML parse.
+  { name: "OpenSSF",               url: "https://openssf.org/feed/",                                          category: "package_security",    priority: "high", maxItems: 8 },
+  { name: "Sigstore Blog",         url: "https://blog.sigstore.dev/index.xml",                                category: "package_security",    priority: "normal", maxItems: 4 },
+  { name: "Chainguard Unchained",  url: "https://www.chainguard.dev/unchained/rss.xml",                       category: "package_security",    priority: "normal", maxItems: 8 },
+  { name: "Legit Security",        url: "https://www.legitsecurity.com/blog/rss.xml",                         category: "package_security",    priority: "high", maxItems: 8 },
+  { name: "Aqua Security",         url: "https://blog.aquasec.com/rss.xml",                                   category: "package_security",    priority: "normal", maxItems: 8 },
+  { name: "HNS Supply Chain",      url: "https://www.helpnetsecurity.com/tag/supply-chain/feed/",             category: "package_security",    priority: "normal", maxItems: 8 },
+  { name: "HN Package Security",   url: "https://hnrss.org/newest?q=npm+OR+pypi+OR+nuget+OR+typosquatting&points=25", category: "package_security", priority: "normal", maxItems: 10 },
 ];
 
 /**
@@ -288,6 +320,17 @@ export const KEYWORDS: KeywordRule[] = [
     routeTo: "offense_red_team" },
   { match: ["cryptograph*", "post-quantum", "pqc", "quantum-safe", "tls", "cipher*"],
     routeTo: "crypto_pqc" },
+  { match: [
+      "npm", "pypi", "nuget", "rubygems", "crates.io", "maven central",
+      "typosquat*", "dependency confusion", "slopsquatting",
+      "supply chain attack", "supply-chain attack", "software supply chain",
+      "malicious package", "compromised package", "package malware",
+      "malicious npm", "malicious pypi", "open source malware",
+      "package registry", "install script", "preinstall", "postinstall",
+      "compromised maintainer", "package hijack*", "trusted publisher*",
+      "shai-hulud", "chaindrop", "package worm", "npm worm", "malicious gem",
+    ],
+    routeTo: "package_security" },
 ];
 
 /** Optional scraper configs for sites without usable RSS. */

@@ -3,7 +3,7 @@
 **Project:** Cyber Drudge
 **Document version:** 3.0 (post v1.2.0)
 **Last reviewed:** 2026-07-07
-**Baseline:** v1.2.0 shipped — 92 validated sources, KEV fix, word-boundary routing, CI hardening, validate:sources
+**Baseline:** v1.2.0 + package_security expansion — 111 sources (110 feeds + 1 scrape), 19 categories, KEV fix, word-boundary routing, CI hardening, validate:sources
 
 This backlog is for the **next** dedicated improvement session. Items completed in v1.2 are listed at the bottom so they are not re-implemented.
 
@@ -44,6 +44,7 @@ This backlog is for the **next** dedicated improvement session. Items completed 
 | **Industrial Cyber cookie** | Feed works only with `Cookie: SentryVerifiedJS=true` (the value their own JS sets). If they change the check, the feed fails soft. Revisit whether the dependency is worth it, or scrape instead. |
 | **CISA KEV Additions bridge** | kevin.gtfkd.com is a third-party hobby service. `fetch-kev.ts` JSON remains the scoring source of truth; the bridge only surfaces headlines. If it dies, consider generating KEV headline items directly from the JSON in `build-data.ts` (removes the dependency entirely — arguably the better design). |
 | **Outflank 403** | Blocks some IPs (fails locally, passes in CI at last check). If CI starts failing, drop it — offense_red_team now has 5 other sources. |
+| **Safeguard.sh feed** | Excellent supply-chain attack roundups, but `feed.xml` is ~5MB and can hang XML parse. Revisit if they offer a truncated feed or we add a max-body-bytes guard. |
 | **Google feeds are slow publishers** | P0 (~8 w) and Google Online Security (~11 w) parse correctly now but publish rarely; they will only appear when fresh. That is correct behavior, not a bug. |
 
 ---

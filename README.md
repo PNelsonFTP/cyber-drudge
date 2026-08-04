@@ -1,6 +1,6 @@
 # CYBER DRUDGE
 
-A Drudge-Report-style cybersecurity news aggregator. Three dense columns, FT blue/orange palette, monospace masthead, light/dark/system themes — covering breaking threats, vulnerabilities, threat intel, breaches, malware analysis, IR, policy, vendor news, and more.
+A Drudge-Report-style cybersecurity news aggregator. Three dense columns, FT blue/orange palette, monospace masthead, light/dark/system themes — covering breaking threats, vulnerabilities, package/supply-chain attacks (npm, PyPI, NuGet, and more), threat intel, breaches, malware analysis, IR, policy, vendor news, and more.
 
 **Live site:** https://pnelsonftp.github.io/cyber-drudge/
 
@@ -27,7 +27,7 @@ Full technical documentation lives in [`docs/`](./docs/README.md):
 - `tsx` for build scripts
 - GitHub Pages + GitHub Actions (Node 24, SHA-pinned actions, Dependabot)
 
-**Sources:** 91 RSS/Atom feeds + 1 HTML scrape + CISA KEV, across 18 categories.
+**Sources:** 110 RSS/Atom feeds + 1 HTML scrape + CISA KEV, across 19 categories.
 
 ## Develop
 
@@ -69,7 +69,7 @@ npm run validate:sources
 
 ### Categories
 
-The 18 categories live in `scripts/sources.ts` (`CATEGORIES`). Common ones:
+The 19 categories live in `scripts/sources.ts` (`CATEGORIES`). Common ones:
 
 | ID                    | Label                  |
 | --------------------- | ---------------------- |
@@ -77,6 +77,7 @@ The 18 categories live in `scripts/sources.ts` (`CATEGORIES`). Common ones:
 | `vulnerabilities`     | VULNERABILITIES        |
 | `malware_analysis`    | MALWARE ANALYSIS       |
 | `threat_intelligence` | THREAT INTELLIGENCE    |
+| `package_security`    | PACKAGE SECURITY       |
 | `data_breaches`       | DATA BREACHES          |
 | `phishing_fraud`      | PHISHING & FRAUD       |
 | `cloud_security`      | CLOUD SECURITY         |
