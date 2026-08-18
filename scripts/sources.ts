@@ -124,6 +124,7 @@ export const FEEDS: FeedDef[] = [
   { name: "BleepingComputer",      url: "https://www.bleepingcomputer.com/feed/",                              category: "breaking_threats",    priority: "critical" },
   { name: "The Hacker News",       url: "https://feeds.feedburner.com/TheHackersNews",                        category: "breaking_threats",    priority: "critical" },
   { name: "Dark Reading",          url: "https://www.darkreading.com/rss.xml",                                category: "breaking_threats",    priority: "high" },
+  { name: "Ars Technica Security", url: "https://arstechnica.com/security/feed/",                             category: "breaking_threats",    priority: "high" },
   { name: "The Record",            url: "https://therecord.media/feed/",                                      category: "breaking_threats",    priority: "high" },
   { name: "Krebs on Security",     url: "https://krebsonsecurity.com/feed/",                                  category: "threat_intelligence", priority: "critical" },
   { name: "SecurityWeek",          url: "https://www.securityweek.com/feed/",                                 category: "breaking_threats",    priority: "high" },
@@ -134,7 +135,15 @@ export const FEEDS: FeedDef[] = [
 
   // Vendor research blogs (RSS-capable)
   { name: "Google Project Zero",   url: "https://projectzero.google/feed.xml",                                category: "vulnerabilities",    priority: "critical" },
+  { name: "VulnCheck Blog",        url: "https://www.vulncheck.com/feed/blog/atom.xml",                       category: "vulnerabilities",     priority: "high", maxItems: 10 },
+  { name: "MySK Blog",             url: "https://mysk.blog/index.xml",                                        category: "vulnerabilities",     priority: "high", maxItems: 8 },
   { name: "Talos",                 url: "https://blog.talosintelligence.com/rss/",                            category: "malware_analysis",    priority: "high" },
+  { name: "Elastic Security Labs", url: "https://www.elastic.co/security-labs/feed",                          category: "threat_intelligence", priority: "high", maxItems: 10 },
+  { name: "Fortinet Threat Research", url: "https://feeds.fortinet.com/fortinet/blog/threat-research/",       category: "threat_intelligence", priority: "high", maxItems: 8 },
+  { name: "CrowdStrike Blog",      url: "https://www.crowdstrike.com/blog/feed/",                             category: "threat_intelligence", priority: "high", maxItems: 10 },
+  { name: "Varonis Blog",          url: "https://www.varonis.com/blog/rss.xml",                               category: "threat_intelligence", priority: "high", maxItems: 8 },
+  { name: "Recorded Future Blog",  url: "https://www.recordedfuture.com/feed",                                category: "threat_intelligence", priority: "normal", maxItems: 8 },
+  { name: "ClamAV Blog",           url: "https://blog.clamav.net/feeds/posts/default?alt=rss",                category: "malware_analysis",    priority: "high", maxItems: 6 },
   { name: "Palo Alto Unit 42",     url: "https://unit42.paloaltonetworks.com/feed/",                          category: "threat_intelligence", priority: "high" },
   { name: "Microsoft Security",    url: "https://www.microsoft.com/en-us/security/blog/feed/",                category: "threat_intelligence", priority: "high" },
   { name: "SentinelOne",           url: "https://www.sentinelone.com/feed/",                                  category: "malware_analysis",    priority: "high" },
@@ -173,6 +182,9 @@ export const FEEDS: FeedDef[] = [
   { name: "CISA Advisories",       url: "https://www.cisa.gov/cybersecurity-advisories/all.xml",             category: "vulnerabilities",     priority: "high" },
   { name: "CISA ICS Advisories",   url: "https://www.cisa.gov/cybersecurity-advisories/ics-advisories.xml", category: "ics_ot",              priority: "high", maxItems: 10 },
   { name: "MSRC",                  url: "https://api.msrc.microsoft.com/update-guide/rss",                    category: "vulnerabilities",     priority: "high" },
+  { name: "Fortinet PSIRT",        url: "https://filestore.fortinet.com/fortiguard/rss/ir.xml",               category: "vulnerabilities",     priority: "high", maxItems: 8 },
+  { name: "Cisco Security Advisories", url: "https://sec.cloudapps.cisco.com/security/center/psirtrss20/CiscoSecurityAdvisory.xml", category: "vulnerabilities", priority: "high", maxItems: 8 },
+  { name: "Splunk Security Advisories", url: "https://advisory.splunk.com/feed",                              category: "vulnerabilities",     priority: "high", maxItems: 8 },
   { name: "CERT-EU",               url: "https://cert.europa.eu/publications/security-advisories-rss",       category: "policy_regulation",   priority: "normal" },
   { name: "NCSC UK",               url: "https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml",        category: "policy_regulation",   priority: "normal" },
   { name: "SANS ISC",              url: "https://isc.sans.edu/rssfeed_full.xml",                             category: "threat_intelligence", priority: "high" },
@@ -196,6 +208,7 @@ export const FEEDS: FeedDef[] = [
   { name: "Embrace The Red",       url: "https://embracethered.com/blog/index.xml",                          category: "ai_security",         priority: "high", maxItems: 10 },
   { name: "Simon Willison (security)", url: "https://simonwillison.net/tags/security.atom",                  category: "ai_security",         priority: "normal", maxItems: 10 },
   { name: "NVIDIA AI Security",    url: "https://developer.nvidia.com/blog/category/cybersecurity/feed/",    category: "ai_security",         priority: "normal", maxItems: 10 },
+  { name: "PromptArmor",           url: "https://promptarmor.substack.com/feed",                             category: "ai_security",         priority: "normal", maxItems: 8 },
 
   // ICS / OT
   // Industrial Cyber gates plain fetches behind a Sentry JS check; the cookie
@@ -223,6 +236,8 @@ export const FEEDS: FeedDef[] = [
   // Vendor / market
   { name: "Return on Security",    url: "https://www.returnonsecurity.com/rss.xml",                          category: "vendor_product",      priority: "normal", maxItems: 6 },
   { name: "Help Net Security",     url: "https://www.helpnetsecurity.com/feed/",                             category: "vendor_product",      priority: "normal", maxItems: 8 },
+  { name: "Cybersecurity Dive",    url: "https://www.cybersecuritydive.com/feeds/news/",                     category: "vendor_product",      priority: "normal", maxItems: 8 },
+  { name: "JetBrains Security",    url: "https://blog.jetbrains.com/security/feed/",                         category: "vendor_product",      priority: "high", maxItems: 8 },
 
   // Security tools — GitHub release feeds (synthesized titles) + tool vendor blog
   { name: "projectdiscovery/nuclei",      url: "https://github.com/projectdiscovery/nuclei/releases.atom",        category: "security_tools", priority: "normal", type: "github-release", maxItems: 3 },
@@ -259,7 +274,11 @@ export const FEEDS: FeedDef[] = [
   // Endor Labs omitted: feed mixes strong attack posts with product "solution
   // brief" spam that crowds the section (no per-feed include filter yet).
   { name: "ReversingLabs",         url: "https://www.reversinglabs.com/blog/rss.xml",                         category: "package_security",    priority: "high", maxItems: 10 },
-  { name: "JFrog Security Research", url: "https://jfrog.com/blog/tag/security-research/feed/",               category: "package_security",    priority: "high", maxItems: 10 },
+  // Upgraded from jfrog.com/blog/tag/security-research/feed/ — tag feed is
+  // the marketing blog; research.jfrog.com is the CVE/campaign write-ups.
+  { name: "JFrog Security Research", url: "https://research.jfrog.com/rss",                                   category: "package_security",    priority: "high", maxItems: 10 },
+  { name: "GitGuardian Blog",      url: "https://blog.gitguardian.com/rss/",                                 category: "package_security",    priority: "high", maxItems: 10 },
+  { name: "OX Security",           url: "https://www.ox.security/feed/",                                     category: "package_security",    priority: "normal", maxItems: 8 },
   { name: "GitHub Security Blog",  url: "https://github.blog/security/feed/",                                 category: "package_security",    priority: "high", maxItems: 10 },
   { name: "GitHub Supply Chain",   url: "https://github.blog/category/security/supply-chain-security/feed/",  category: "package_security",    priority: "high", maxItems: 8 },
   { name: "PyPI Blog",             url: "https://blog.pypi.org/feed_rss_created.xml",                         category: "package_security",    priority: "high", maxItems: 8 },
@@ -273,6 +292,20 @@ export const FEEDS: FeedDef[] = [
   { name: "Aqua Security",         url: "https://blog.aquasec.com/rss.xml",                                   category: "package_security",    priority: "normal", maxItems: 8 },
   { name: "HNS Supply Chain",      url: "https://www.helpnetsecurity.com/tag/supply-chain/feed/",             category: "package_security",    priority: "normal", maxItems: 8 },
   { name: "HN Package Security",   url: "https://hnrss.org/newest?q=npm+OR+pypi+OR+nuget+OR+typosquatting&points=25", category: "package_security", priority: "normal", maxItems: 10 },
+
+  // 2026-08-18 collector upgrade — probed 200 + RSS/Atom; quality-first skips:
+  //   Chrome Releases          — channel-update noise (Dev/Beta/ChromeOS Flex); P0 + Google Online Security cover Google vulns
+  //   Cisco Security Blog      — second Cisco blog after Talos; FedRAMP/SD-WAN/product, not research (PSIRT added instead)
+  //   JFrog tag feed           — weaker URL; replaced in place by research.jfrog.com/rss (1/6 title overlap, not a second feed)
+  //   Flashpoint Blog          — geopolitics/awards-heavy, weak cyber-ops signal
+  //   SOCRadar                 — secondary wire overlap with THN/BC/Dark Reading
+  //   Wiz Blog                 — 671-item product blog (awards, FinOps, playbooks)
+  //   Orca Security Blog       — SEO thought-leadership, no research posts
+  //   Threatpost               — archive
+  //   Metabase                 — product blog
+  //   Group-IB                 — already listed; TLS flake
+  //   CISA all-advisories / Project Zero / Unit 42 / DFIR / Volexity / watchTowr — already on this site
+  //   extra CISA KEV bridge    — kevin.gtfkd.com + fetch-kev.ts already cover KEV
 ];
 
 /**
@@ -352,14 +385,8 @@ export interface ScrapeDef {
  * We keep these conservative to avoid blow-ups.
  */
 export const SCRAPE_SOURCES: ScrapeDef[] = [
-  {
-    name: "CrowdStrike Blog",
-    category: "vendor_product",
-    priority: "high",
-    listingUrl: "https://www.crowdstrike.com/blog/",
-    cardPattern: '<a[^>]+href="([^"]+)"[^>]*>([^<]+)</a>',
-    maxItems: 12,
-  },
+  // CrowdStrike Blog moved to RSS (https://www.crowdstrike.com/blog/feed/) —
+  // 200 + 10 valid items, so the HTML scrape is no longer needed.
 ];
 
 /** Sector-relevant tickers (Yahoo chart API, silent-fail to {} on error). */
