@@ -10,17 +10,19 @@
          don't see a dark flash. Keep the key in sync with src/hooks/useTheme.ts. -->
     <script>
       (function () {
-        var resolved = "dark";
+        var resolved = "light";
         try {
-          var t = localStorage.getItem("cyber-drudge:theme") || "dark";
-          if (t === "light") resolved = "light";
-          else if (t === "system" && !window.matchMedia("(prefers-color-scheme: dark)").matches) resolved = "light";
-        } catch (e) { /* default dark */ }
-        document.documentElement.setAttribute("data-theme", resolved);
+          var t = localStorage.getItem("cyber-drudge:theme") || "light";
+          if (t === "dark") resolved = "dark";
+          else if (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches) resolved = "dark";
+        } catch (e) { /* default light */ }
+        var root = document.documentElement;
+        root.setAttribute("data-theme", resolved);
+        root.classList.add(resolved);
       })();
     </script>
   </head>
-  <body class="bg-bg text-fg">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

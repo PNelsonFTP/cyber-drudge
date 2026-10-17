@@ -51,7 +51,7 @@ export function Headline(props: {
 
   return (
     <div
-      className={`group py-1.5 border-b border-[var(--color-line)] last:border-b-0 ${isStale ? "opacity-65" : ""}`}
+      className={`group py-1 ${isStale ? "opacity-60" : ""}`}
       onMouseEnter={(e) => props.onHover?.(a, e.currentTarget.getBoundingClientRect())}
       onMouseLeave={() => {
         setMutedHint(false);
@@ -62,8 +62,8 @@ export function Headline(props: {
         <button
           aria-label={props.bookmarked ? "Remove bookmark" : "Bookmark"}
           onClick={() => props.onToggleBookmark(a.id)}
-          className={`mono text-xs px-1 leading-5 ${
-            props.bookmarked ? "siren" : "text-[var(--color-muted)]"
+          className={`text-xs px-1 leading-5 ${
+            props.bookmarked ? "text-[var(--gold)]" : "text-[var(--color-muted)] opacity-70 hover:opacity-100"
           }`}
           title="Bookmark"
         >
@@ -72,8 +72,8 @@ export function Headline(props: {
         <button
           aria-label={props.queued ? "Remove from queue" : "Add to read-later queue"}
           onClick={() => props.onToggleQueue(a.id)}
-          className={`mono text-xs px-1 leading-5 ${
-            props.queued ? "text-[var(--color-link)]" : "text-[var(--color-muted)]"
+          className={`text-xs px-1 leading-5 ${
+            props.queued ? "text-[var(--accent)]" : "text-[var(--color-muted)] opacity-70 hover:opacity-100"
           }`}
           title="Read later"
         >
@@ -110,11 +110,11 @@ export function Headline(props: {
               +{relatedCount}
             </span>
           )}
-          <div className="mt-0.5 flex items-center gap-2 text-[11px] mono text-[var(--color-muted)]">
+          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[var(--color-muted)]">
             <span className="source-badge">{a.source}</span>
             <span>{timeAgo(a.publishedAt)}</span>
             <button
-              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 underline-offset-2 hover:underline hover:siren"
+              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 underline-offset-2 hover:underline hover:text-[var(--siren)]"
               onMouseEnter={() => setMutedHint(true)}
               onClick={() => {
                 props.onMuteSource(a.source);

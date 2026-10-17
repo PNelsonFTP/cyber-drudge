@@ -47,8 +47,8 @@ export function HoverCard(props: {
       onMouseEnter={props.onCancelHide}
       onMouseLeave={props.onScheduleHide}
     >
-      <div className="text-[11px] mono text-[var(--color-muted)] flex items-center gap-2">
-        <span className="source-badge siren">{a.source}</span>
+      <div className="text-[11px] text-[var(--color-muted)] flex items-center gap-2">
+        <span className="source-badge">{a.source}</span>
         <span>·</span>
         <span>{timeAgo(a.publishedAt)}</span>
         <span>·</span>
@@ -61,7 +61,7 @@ export function HoverCard(props: {
         </div>
       )}
       {related.length > 0 && (
-        <div className="mt-2 text-[11px] mono text-[var(--color-muted)]">
+        <div className="mt-2 text-[11px] text-[var(--color-muted)]">
           <span className="underline">Also covered by:</span>{" "}
           {related.slice(0, 4).map((r) => r.source).join(", ")}
         </div>
@@ -71,7 +71,7 @@ export function HoverCard(props: {
           href={a.url}
           target="_blank"
           rel="noopener noreferrer nofollow"
-          className="text-[12px] mono text-[var(--color-link)]"
+          className="text-[12px] text-[var(--color-link)]"
         >
           Read article &rarr;
         </a>

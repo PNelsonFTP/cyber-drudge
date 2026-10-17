@@ -1,316 +1,373 @@
 @import "tailwindcss";
 
-/* Dark mode is the default; light/system themes opt in via a `data-theme` attr
-   on <html>. Tailwind v4 variant customisation is done with @custom-variant. */
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/* CYBER DRUDGE visual system, matched to XPND DRUDGE / AI DRUDGE / First Trust.
+   Light is the default. html.dark / html.light switch the palette. */
 
-@theme {
-  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "SFMono-Regular", "Menlo", "Consolas", "Liberation Mono", monospace;
-
-  /* Dark palette — deep navy. Anchored on FT's darkest navy #013953 but
-     desaturated for readability as a true dark mode. */
-  --color-bg: #0b1a26;
-  --color-surface: #122536;
-  --color-surface-2: #182f45;
-  --color-fg: #e6edf3;
-  --color-muted: #8aa0b4;
-  --color-line: #1f3850;
-
-  /* Brand accents (kept across themes):
-     - siren red: critical/breaking
-     - accent (FT deep blue): links + related badge
-     - gold (FT orange): secondary accent */
-  --color-siren: #e50b0b;
-  --color-siren-dim: #b00808;
-  --color-accent: #1d4ed8;            /* link blue (dark) */
-  --color-accent-hi: #ff1a1a;         /* hover/bright red */
-  --color-link: #5cb6ff;              /* link blue (dark) */
-  --color-gold: #f0902a;              /* FT orange */
-  --color-up: #22c55e;                /* ticker gainers */
-  --color-down: #e50b0b;              /* ticker losers */
-}
-
-:root {
-  color-scheme: dark;
-}
-
-/* Light theme — FT Portfolios blue + warm paper-cream background (Drudge feel).
-   Page bg #f4f1ea, surface #fffdf7, headings navy #003366, links #00589F. */
-[data-theme="light"] {
-  color-scheme: light;
-  --color-bg: #f4f1ea;
-  --color-surface: #fffdf7;
-  --color-surface-2: #efece2;
-  --color-fg: #1a1a1a;
-  --color-muted: #6a6a6a;
-  --color-line: #c8bfa3;
-
-  --color-siren: #b00808;
-  --color-siren-dim: #8a0606;
-  --color-accent: #00589F;            /* FT link blue */
-  --color-accent-hi: #d40000;
-  --color-link: #00589F;
-  --color-gold: #c4791c;              /* slightly darker orange for contrast on cream */
-  --color-up: #1f9d4a;
-  --color-down: #b00808;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background: var(--color-bg);
-  color: var(--color-fg);
-  font-family: var(--font-mono);
-  font-size: 14px;
-  line-height: 1.35;
-  -webkit-font-smoothing: antialiased;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-a:hover {
-  text-underline-offset: 2px;
-  text-decoration: underline;
-}
-
-::selection {
-  background: var(--color-siren);
-  color: #fff;
-}
-
-/* ----------------------------------------------------------------------------
- * Headline priority tiers — critical / high / medium / low
- * Maps directly to the build's `priority` field for visual hierarchy.
- * -------------------------------------------------------------------------- */
-.headline-critical {
-  color: var(--color-siren);
-  font-weight: 700;
-}
-.headline-high {
-  color: var(--color-fg);
-  font-weight: 700;
-}
-.headline-medium {
-  color: var(--color-fg);
-  font-weight: 500;
-}
-.headline-low {
-  color: var(--color-fg);
-  opacity: 0.85;
-  font-weight: 400;
-}
-
-/* Legacy alias kept so existing markup keeps working. */
-.headline-link {
-  display: inline;
-  color: var(--color-fg);
-  font-weight: 600;
-}
-.headline-link:hover {
-  color: var(--color-siren);
-  text-decoration: underline;
-}
-.headline-link[data-priority="critical"] {
-  color: var(--color-siren);
-  font-weight: 700;
-}
-
-.mono {
-  font-family: var(--font-mono);
-}
-
-.siren {
-  color: var(--color-siren);
-}
-
-/* ----------------------------------------------------------------------------
- * Source pill — small uppercase bordered badge next to each headline.
- * -------------------------------------------------------------------------- */
-.source-badge {
-  display: inline-block;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border: 1px solid var(--color-line);
-  border-radius: 2px;
-  padding: 1px 5px;
-  font-size: 10px;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-/* ----------------------------------------------------------------------------
- * Related badge — blue pill showing "+N" related coverage on a headline.
- * -------------------------------------------------------------------------- */
-.related-badge {
-  display: inline-block;
-  vertical-align: middle;
-  background: var(--color-accent);
-  color: #fff;
-  border-radius: 8px;
-  margin-left: 4px;
-  padding: 0 5px;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-/* ----------------------------------------------------------------------------
- * NEW badge — small red outline pill on items published <6h ago.
- * KEV badge — solid siren pill for CISA Known Exploited Vulnerabilities.
- * -------------------------------------------------------------------------- */
-.new-badge {
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 4px;
-  padding: 0 5px;
-  border: 1px solid var(--color-siren);
-  color: var(--color-siren);
-  border-radius: 3px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-}
-.kev-badge {
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 4px;
-  padding: 0 5px;
-  background: var(--color-siren);
-  color: #fff;
-  border-radius: 3px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-}
-
-/* ----------------------------------------------------------------------------
- * Section heading — minimal Drudge-style red underline.
- * Heading text uses navy in light mode (FT), muted blue in dark mode.
- * The filled navy bar is replaced by a 2px red bottom border.
- * -------------------------------------------------------------------------- */
-.section-heading {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 13px;
-  font-weight: 800;
-  border-bottom: 2px solid var(--color-siren);
-  padding-bottom: 4px;
-  margin-bottom: 8px;
-}
-[data-theme="light"] .section-heading,
-html.light .section-heading {
-  color: #003366;
-}
-
-/* ----------------------------------------------------------------------------
- * Masthead — mono, tight negative tracking, weight 800, line-height 1
- * (matches the AI-Drudge masthead treatment)
- * -------------------------------------------------------------------------- */
-.masthead {
-  font-family: var(--font-mono);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-/* ----------------------------------------------------------------------------
- * Lead story title — slightly tighter tracking, mono, 22px.
- * -------------------------------------------------------------------------- */
-.lead-title {
-  font-family: var(--font-mono);
-  letter-spacing: -0.01em;
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1.15;
-}
-
-/* ----------------------------------------------------------------------------
- * Hover card — drop shadow + warm cream bg in light mode.
- * -------------------------------------------------------------------------- */
-.hover-card {
-  position: fixed;
-  z-index: 50;
-  width: 340px;
-  max-width: calc(100vw - 32px);
-  border: 1px solid var(--color-line);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  /* Default (dark mode) surface — must be opaque so text is readable
-     over any underlying page content. */
-  background: var(--color-surface-2);
-  color: var(--color-fg);
-}
-[data-theme="light"] .hover-card,
-html.light .hover-card {
-  background: #fffdf7;
-  border-color: #c8bfa3;
-  color: #1a1a1a;
-}
-
-/* ----------------------------------------------------------------------------
- * Stock ticker — pure black bar with colored arrows in BOTH themes.
- * Symbols use FT blue, gainers green, losers red.
- * -------------------------------------------------------------------------- */
-.ticker-bar {
-  background: #000;
-  color: #ddd;
-  border-top: 1px solid #222;
-  border-bottom: 1px solid #222;
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-.ticker-sym {
-  color: #6ea8ff;
-}
-.ticker-up {
-  color: var(--color-up);
-}
-.ticker-down {
-  color: var(--color-down);
-}
-.ticker-flat {
-  color: #999;
-}
-
-/* ----------------------------------------------------------------------------
- * Custom scrollbars (dark mode) — adds polish to the SOC feel.
- * -------------------------------------------------------------------------- */
-[data-theme="dark"] ::-webkit-scrollbar,
-html.dark ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-[data-theme="dark"] ::-webkit-scrollbar-track,
-html.dark ::-webkit-scrollbar-track {
-  background: var(--color-bg);
-}
-[data-theme="dark"] ::-webkit-scrollbar-thumb,
-html.dark ::-webkit-scrollbar-thumb {
-  background: #2a3a4a;
-  border-radius: 5px;
-}
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
-html.dark ::-webkit-scrollbar-thumb:hover {
-  background: #3a4a5a;
-}
-[data-theme="light"] ::-webkit-scrollbar-thumb,
-html.light ::-webkit-scrollbar-thumb {
-  background: #c8bfa3;
-  border-radius: 5px;
-}
-
-.col-rule {
-  border-right: 1px solid var(--color-line);
-}
-@media (max-width: 767px) {
-  .col-rule {
-    border-right: 0;
+@layer base {
+  :root {
+    --font-sans: Arial, Helvetica, sans-serif;
+    --ft-navy: #2f4e75;
+    --ft-navy-dark: #243b5a;
+    --ft-navy-deep: #002f5d;
+    --ft-gold: #edc339;
+    --ft-orange: #f0902a;
+    --ft-blue: #00589f;
+    --siren: #cc0000;
+    --siren-dim: #8b0000;
+    --accent: #00589f;
+    --gold: #edc339;
+    --color-bg: #ffffff;
+    --color-surface: #f5f5f5;
+    --color-surface-2: #ffffff;
+    --color-fg: #000000;
+    --color-muted: #5a6470;
+    --color-line: #bfbfbf;
+    --color-line-soft: #dcdcdc;
+    --color-link: #00589f;
+    --color-up: #007a3d;
+    --color-down: #cc0000;
+    --page-bg: #eeeeee;
+    --page-stripe: repeating-linear-gradient(
+      0deg,
+      #e8e8e8 0px,
+      #e8e8e8 1px,
+      #f3f3f3 1px,
+      #f3f3f3 3px
+    );
+    --shell-max: 1500px;
+    --silver-top: #f8f8f8;
+    --silver-bot: #cdcdcf;
+    --menu-top: #fdfdfd;
+    --menu-bot: #d8d7da;
   }
+
+  html.dark {
+    color-scheme: dark;
+    --color-bg: #0e1b2a;
+    --color-surface: #16273a;
+    --color-surface-2: #16273a;
+    --color-fg: #e8eef5;
+    --color-muted: #93a6b9;
+    --color-line: #2b425e;
+    --color-line-soft: #223549;
+    --color-link: #6fb3e8;
+    --color-up: #35c26b;
+    --color-down: #ff4d4d;
+    --siren: #ff4d4d;
+    --page-bg: #0a1522;
+    --page-stripe: repeating-linear-gradient(
+      0deg,
+      #0c1826 0px,
+      #0c1826 1px,
+      #101e2e 1px,
+      #101e2e 3px
+    );
+    --silver-top: #22374f;
+    --silver-bot: #16273a;
+    --menu-top: #1d3149;
+    --menu-bot: #142334;
+    --ft-navy-deep: #e8eef5;
+  }
+
+  html.light { color-scheme: light; }
+
+  html, body, #root {
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--page-bg);
+    background-image: var(--page-stripe);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  a { color: var(--color-link); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  button { font: inherit; }
+  ::selection { background: var(--ft-navy); color: #fff; }
 }
 
-/* Mobile accordion caret */
-.caret-toggle {
-  -webkit-tap-highlight-color: transparent;
+@layer components {
+  .sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background-color: var(--page-bg);
+    background-image: var(--page-stripe);
+  }
+
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    max-width: var(--shell-max);
+    margin: 0 auto;
+    padding: 8px 12px 7px;
+    background: linear-gradient(180deg, var(--ft-navy) 0%, var(--ft-navy-dark) 100%);
+    border-bottom: 4px solid var(--ft-gold);
+    border-left: 1px solid var(--ft-navy-dark);
+    border-right: 1px solid var(--ft-navy-dark);
+  }
+
+  .masthead-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .logo {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-size: 22px;
+    line-height: 1;
+    color: #fff;
+  }
+
+  .logo .mark { color: var(--ft-gold); }
+
+  .tagline {
+    margin-top: 3px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #c5d3e4;
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    justify-content: flex-end;
+  }
+
+  .tool-btn {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    padding: 3px 7px;
+    cursor: pointer;
+  }
+
+  .tool-btn:hover,
+  .tool-btn.active {
+    color: var(--ft-navy-dark);
+    background: var(--ft-gold);
+    border-color: var(--ft-gold);
+    text-decoration: none;
+  }
+
+  .tool-btn.stale { color: #ffb4b4; border-color: #ffb4b4; }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: var(--shell-max);
+    margin: 0 auto;
+    padding: 6px 12px;
+    background: linear-gradient(180deg, var(--menu-top) 0%, var(--menu-bot) 100%);
+    border: 1px solid var(--color-line);
+    border-top: 0;
+  }
+
+  .search-input {
+    flex: 1;
+    min-width: 180px;
+    background: #fff;
+    border: 1px solid #9aa4ae;
+    color: #000;
+    padding: 4px 8px;
+    font-family: inherit;
+    font-size: 13px;
+  }
+
+  html.dark .search-input {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    border-color: var(--color-line);
+  }
+
+  .search-input:focus { outline: none; border-color: var(--ft-blue); }
+
+  .feeds-note {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    white-space: nowrap;
+  }
+
+  .desk {
+    max-width: var(--shell-max);
+    margin: 0 auto 24px;
+    padding: 14px 14px 28px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-line);
+    border-top: 0;
+  }
+
+  .ticker-bar {
+    max-width: var(--shell-max);
+    margin: 0 auto;
+    background: linear-gradient(180deg, var(--ft-navy) 0%, var(--ft-navy-dark) 100%);
+    color: #e8eef5;
+    border-left: 1px solid var(--ft-navy-dark);
+    border-right: 1px solid var(--ft-navy-dark);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ticker-sym { color: var(--ft-gold); font-weight: 700; }
+  .ticker-up { color: #6ee7a0; }
+  .ticker-down { color: #ff8f8f; }
+  .ticker-flat { color: #c5d3e4; }
+
+  .section-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    background: linear-gradient(180deg, var(--silver-top) 0%, var(--silver-bot) 100%);
+    border: 1px solid var(--color-line);
+    border-left: 4px solid var(--ft-navy);
+    border-bottom: 2px solid var(--ft-navy);
+    padding: 4px 8px;
+    margin: 0 0 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ft-navy-deep);
+  }
+
+  .lead-title {
+    font-weight: 700;
+    font-size: clamp(18px, 2.2vw, 25px);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--ft-navy-deep);
+  }
+
+  .lead-title.headline-critical { color: var(--siren); }
+
+  .headline-critical { color: var(--siren); font-weight: 700; }
+  .headline-high { font-weight: 700; color: var(--color-fg); }
+  .headline-medium { font-weight: 500; }
+  .headline-low { font-weight: 400; color: var(--color-muted); }
+
+  .source-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0 4px;
+    border: 1px solid var(--ft-navy);
+    color: var(--ft-navy-deep);
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+
+  html.dark .source-badge { color: var(--color-fg); border-color: var(--color-line); }
+
+  .panel {
+    margin-bottom: 16px;
+    padding: 0 0 8px;
+  }
+
+  .brief-box, .trend-box {
+    border: 1px solid var(--color-line);
+    background: var(--color-surface);
+    padding: 8px 10px 10px;
+    margin-bottom: 14px;
+  }
+
+  .brief-box .section-heading,
+  .trend-box .section-heading {
+    margin: -8px -10px 8px;
+    border-left-color: var(--ft-gold);
+  }
+
+  .trend-box .section-heading { border-left-color: var(--siren); }
+
+  .hover-card {
+    position: fixed;
+    z-index: 50;
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    border: 1px solid var(--color-line);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  .related-badge {
+    display: inline-block;
+    background: var(--ft-navy);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0 5px;
+    border-radius: 8px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  .new-badge {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--siren);
+    vertical-align: middle;
+  }
+
+  .kev-badge {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px;
+    padding: 0 5px;
+    background: var(--siren);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+  }
+
+  .news-columns {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-top: 8px;
+  }
+
+  @media (min-width: 768px) {
+    .news-columns { grid-template-columns: repeat(3, 1fr); }
+    .news-col {
+      padding: 0 14px;
+      border-right: 1px solid var(--color-line-soft);
+    }
+    .news-col:first-child { padding-left: 0; }
+    .news-col:last-child { border-right: 0; padding-right: 0; }
+  }
+
+  .siren { color: var(--siren); }
+  .mono { font-family: var(--font-sans); }
 }

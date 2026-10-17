@@ -3,8 +3,8 @@ import type { StocksPayload } from "../lib/types";
 /**
  * src/components/StockTicker.tsx
  * ------------------------------
- * Pure black ticker bar in BOTH themes (Bloomberg-terminal feel). Symbols
- * render in FT blue; gainers green, losers red. Hidden if no quotes.
+ * Navy ticker bar matching XPND DRUDGE. Symbols in FT gold; gainers green,
+ * losers red. Hidden if no quotes.
  */
 export function StockTicker(props: { quotes: StocksPayload }) {
   const entries = Object.entries(props.quotes);
@@ -17,7 +17,7 @@ export function StockTicker(props: { quotes: StocksPayload }) {
           return (
             <span
               key={sym}
-              className="mono text-[11px] inline-flex items-center gap-1 mr-4"
+              className="text-[11px] inline-flex items-center gap-1 mr-4"
             >
               <span className="ticker-sym">{sym}</span>
               <span>${q.price.toFixed(2)}</span>

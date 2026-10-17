@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 /**
  * src/hooks/useTheme.ts
  * ---------------------
- * Dark is the default for this site's Drudge-cosplayed-as-SOC aesthetic.
+ * Light is the default, matching XPND DRUDGE / AI DRUDGE.
  * Choices: "dark" | "light" | "system". Persisted in localStorage; system
  * follows prefers-color-scheme and live-updates if the OS choice changes.
  */
@@ -20,16 +20,19 @@ export function useTheme(): {
   const [theme, setThemeState] = useState<ThemeChoice>(() => {
     try {
       const v = localStorage.getItem(KEY) as ThemeChoice | null;
-      return v === "light" || v === "system" || v === "dark" ? v : "dark";
+      return v === "light" || v === "system" || v === "dark" ? v : "light";
     } catch {
-      return "dark";
+      return "light";
     }
   });
 
   const resolved = useResolved(theme);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", resolved);
+    const root = document.documentElement;
+    root.setAttribute("data-theme", resolved);
+    root.classList.toggle("dark", resolved === "dark");
+    root.classList.toggle("light", resolved === "light");
   }, [resolved]);
 
   useEffect(() => {

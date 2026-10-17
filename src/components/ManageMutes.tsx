@@ -46,12 +46,12 @@ export function ManageMutes(props: {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center mb-3">
-          <h2 id="manage-mutes-title" className="font-bold uppercase mono text-[13px] tracking-wider">
+          <h2 id="manage-mutes-title" className="font-bold uppercase text-[13px] tracking-wider">
             Manage mutes
           </h2>
           <button
             ref={closeRef}
-            className="ml-auto mono text-[12px] text-[var(--color-muted)] hover:siren"
+            className="ml-auto text-[12px] text-[var(--color-muted)] hover:text-[var(--siren)]"
             onClick={props.onClose}
           >
             {"\u2715"} close
@@ -67,7 +67,7 @@ export function ManageMutes(props: {
             {!nothing && (
               <div className="mb-3">
                 <button
-                  className="text-[11px] mono text-[var(--color-link)] hover:underline"
+                  className="text-[11px] text-[var(--color-link)] hover:underline"
                   onClick={props.onRestoreAll}
                 >
                   restore all
@@ -77,7 +77,7 @@ export function ManageMutes(props: {
 
             {props.mutedCategories.length > 0 && (
               <>
-                <div className="text-[10px] mono uppercase text-[var(--color-muted)] mb-1">
+                <div className="text-[10px] uppercase tracking-wider text-[var(--color-muted)] mb-1">
                   Categories
                 </div>
                 <ul className="mb-3 space-y-1">
@@ -87,7 +87,7 @@ export function ManageMutes(props: {
                         {props.categoryLabels[c] ?? c}
                       </span>
                       <button
-                        className="text-[11px] mono text-[var(--color-link)] hover:underline"
+                        className="text-[11px] text-[var(--color-link)] hover:underline"
                         onClick={() => props.onRestoreCategory(c)}
                       >
                         restore
@@ -100,7 +100,7 @@ export function ManageMutes(props: {
 
             {props.mutedSources.length > 0 && (
               <>
-                <div className="text-[10px] mono uppercase text-[var(--color-muted)] mb-1">
+                <div className="text-[10px] uppercase tracking-wider text-[var(--color-muted)] mb-1">
                   Sources
                 </div>
                 <ul className="space-y-1">
@@ -108,7 +108,7 @@ export function ManageMutes(props: {
                     <li key={s} className="flex items-center gap-2 text-[13px]">
                       <span className="flex-1">{s}</span>
                       <button
-                        className="text-[11px] mono text-[var(--color-link)] hover:underline"
+                        className="text-[11px] text-[var(--color-link)] hover:underline"
                         onClick={() => props.onRestoreSource(s)}
                       >
                         restore

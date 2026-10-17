@@ -103,7 +103,8 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-full">
+      <div className="sticky-top">
       <Header
         view={view}
         setView={setView}
@@ -119,8 +120,9 @@ export default function App() {
         feedsOk={feedsOk}
       />
       <StockTicker quotes={stocks} />
+      </div>
 
-      <main className="max-w-[1400px] mx-auto px-2 md:px-4 py-2">
+      <main className="desk">
         {view === "home" && (
           <>
             <DailyBrief brief={brief} />
@@ -175,9 +177,8 @@ export default function App() {
             onHoverEnd={onHoverEnd}
           />
         )}
+        <Footer payload={data} feedsOk={feedsOk} />
       </main>
-
-      <Footer payload={data} feedsOk={feedsOk} />
 
       <HoverCard
         article={hoverArticle}
@@ -226,7 +227,7 @@ function ThreeColumnLayout(props: {
   const right = buckets.filter((b) => b.column === "right");
 
   const renderCol = (cols: CategoryBucket[], withLead = false) => (
-    <div className="md:col-rule px-1 md:px-2">
+    <div className="news-col">
       {withLead && <LeadStory lead={payload.leadStory} />}
       {cols.map((b) => (
         <CategoryColumn
@@ -246,7 +247,7 @@ function ThreeColumnLayout(props: {
   );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-0">
+    <div className="news-columns">
       {renderCol(left)}
       {renderCol(center, true)}
       {renderCol(right)}
@@ -267,11 +268,7 @@ function SingleColumnList(props: {
 }) {
   return (
     <section className="max-w-2xl mx-auto py-2">
-      <header className="flex items-baseline gap-2 pb-1 mb-4 border-b-2 border-[var(--color-siren)]">
-        <h2 className="section-heading" style={{ borderBottom: "none", marginBottom: 0, paddingBottom: 0 }}>
-          {props.title}
-        </h2>
-      </header>
+      <h2 className="section-heading">{props.title}</h2>
       {props.articles.length === 0 ? (
         <p className="text-[13px] text-[var(--color-muted)]">Nothing here yet.</p>
       ) : (
@@ -303,7 +300,7 @@ function SingleColumnList(props: {
 
 function Footer(props: { payload: HeadlinesPayload | null; feedsOk: { ok: number; total: number } }) {
   return (
-    <footer className="border-t border-[var(--color-line)] mt-4 py-3 px-3 text-[11px] mono text-[var(--color-muted)] flex justify-between">
+    <footer className="mt-12 pt-6 border-t border-[var(--color-line)] text-[11px] text-[var(--color-muted)] flex justify-between gap-2 flex-wrap">
       <span>
         feeds: {props.feedsOk.ok}/{props.feedsOk.total} OK ·{" "}
         {props.payload?.categories.length ?? 0} categories
@@ -318,14 +315,14 @@ function Footer(props: { payload: HeadlinesPayload | null; feedsOk: { ok: number
 function LoadingOrEmpty(props: { data: HeadlinesPayload | null }) {
   if (!props.data) {
     return (
-      <div className="py-12 text-center text-[var(--color-muted)] mono">
+      <div className="py-12 text-center text-[var(--color-muted)]">
         Loading headlines...
       </div>
     );
   }
   if (props.data.categories.length === 0) {
     return (
-      <div className="py-12 text-center text-[var(--color-muted)] mono">
+      <div className="py-12 text-center text-[var(--color-muted)]">
         No headlines available.
       </div>
     );

@@ -4,9 +4,8 @@ import { timeAgo } from "../lib/timeAgo";
 /**
  * src/components/Header.tsx
  * ------------------------
- * Top toolbar. Masthead "CYBER DRUDGE" in red. Four toolbar buttons on the
- * right: bookmarks count, queue count, muted count, theme toggle. Search
- * input below the masthead (client-side filter).
+ * First Trust masthead shared with XPND DRUDGE and AI DRUDGE: navy bar,
+ * gold rule, gold wordmark, and a silver search row.
  */
 export type View = "home" | "bookmarks" | "queue";
 
@@ -24,88 +23,60 @@ export function Header(props: {
   generatedAt: number | null;
   feedsOk: { ok: number; total: number };
 }) {
+  const stale = props.generatedAt != null && Date.now() - props.generatedAt > 6 * 3_600_000;
   return (
-    <header className="border-b-2 border-[var(--color-siren)]">
-      <div className="flex items-end justify-between px-3 pt-3 pb-1">
-        <button
-          className="text-left masthead"
-          onClick={() => props.setView("home")}
-          title="Home"
-        >
-          <div className="siren text-3xl md:text-4xl">
-            CYBER<span className="text-[var(--color-fg)]"> DRUDGE</span>
-          </div>
-          <div className="text-[10px] mono uppercase text-[var(--color-muted)] tracking-widest mt-0.5">
-            cybersecurity, drudge-style ·{" "}
-            {props.generatedAt
-              ? `updated ${timeAgo(props.generatedAt)}`
-              : "loading"}
-          </div>
+    <header>
+      <div className="header-row">
+        <button type="button" className="masthead-btn" onClick={() => props.setView("home")} title="Home">
+          <span className="logo">
+            <span className="mark">CYBER</span> DRUDGE
+          </span>
+          <span className="tagline">
+            cybersecurity
+            {props.generatedAt ? ` · updated ${timeAgo(props.generatedAt)}` : " · loading"}
+            {` · feeds ${props.feedsOk.ok}/${props.feedsOk.total}`}
+          </span>
         </button>
-        <div className="flex items-center gap-2 pb-1">
-          <ToolBtn
-            label="bookmarks"
-            glyph={"\u2605"}
-            count={props.bookmarksCount}
-            active={props.view === "bookmarks"}
-            onClick={() => props.setView(props.view === "bookmarks" ? "home" : "bookmarks")}
-          />
-          <ToolBtn
-            label="queue"
-            glyph={"\u23F7"}
-            count={props.queueCount}
-            active={props.view === "queue"}
-            onClick={() => props.setView(props.view === "queue" ? "home" : "queue")}
-          />
-          <ToolBtn
-            label="muted"
-            glyph={"\u2715"}
-            count={props.mutedCount}
-            onClick={props.onOpenMutes}
-          />
+        <div className="toolbar">
           <button
-            className="mono text-[12px] px-2 py-1 border border-[var(--color-line)] hover:siren"
+            type="button"
+            className={`tool-btn ${props.view === "bookmarks" ? "active" : ""}`}
+            onClick={() => props.setView(props.view === "bookmarks" ? "home" : "bookmarks")}
+            title="Bookmarks"
+          >
+            ★ Bookmarks {props.bookmarksCount}
+          </button>
+          <button
+            type="button"
+            className={`tool-btn ${props.view === "queue" ? "active" : ""}`}
+            onClick={() => props.setView(props.view === "queue" ? "home" : "queue")}
+            title="Read later"
+          >
+            ⏷ Later {props.queueCount}
+          </button>
+          <button type="button" className="tool-btn" onClick={props.onOpenMutes} title="Manage hidden sources">
+            Mutes {props.mutedCount}
+          </button>
+          <button
+            type="button"
+            className={`tool-btn ${stale ? "stale" : ""}`}
             onClick={props.onCycleTheme}
             title={`Theme: ${props.theme}`}
           >
-            {props.theme === "dark" ? "DARK" : props.theme === "light" ? "LIGHT" : "AUTO"}
+            {props.theme === "dark" ? "Dark" : props.theme === "light" ? "Light" : "Auto"}
           </button>
         </div>
       </div>
-      <div className="flex items-center gap-2 px-3 py-1 border-t border-[var(--color-line)]">
+      <div className="control-row">
         <input
-          className="flex-1 bg-[var(--color-surface)] border border-[var(--color-line)] px-2 py-1 text-[13px] mono outline-none focus:border-[var(--color-accent)]"
-          placeholder="search headlines, sources, categories..."
+          type="search"
+          className="search-input"
+          placeholder="search headlines, sources, categories…"
           value={props.search}
           onChange={(e) => props.onSearch(e.target.value)}
+          aria-label="Search headlines"
         />
-        <span className="text-[11px] mono text-[var(--color-muted)] whitespace-nowrap">
-          feeds: {props.feedsOk.ok}/{props.feedsOk.total}
-        </span>
       </div>
     </header>
-  );
-}
-
-function ToolBtn(props: {
-  label: string;
-  glyph: string;
-  count: number;
-  active?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      title={props.label}
-      onClick={props.onClick}
-      className={`mono text-[12px] px-2 py-1 border ${
-        props.active
-          ? "border-[var(--color-accent)] siren"
-          : "border-[var(--color-line)] text-[var(--color-muted)] hover:siren"
-      }`}
-    >
-      {props.glyph}{" "}
-      <span className="ml-1">{props.count}</span>
-    </button>
   );
 }

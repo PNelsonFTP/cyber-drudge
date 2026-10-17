@@ -5,8 +5,8 @@ import { fullStamp, timeAgo } from "../lib/timeAgo";
  * src/components/LeadStory.tsx
  * ----------------------------
  * Center column anchor: the biggest, most-covered story of the cycle.
- * Title uses the `.lead-title` treatment (mono, 22px, tight tracking).
- * Red-underline heading labels it as the LEAD STORY.
+ * Title uses the First Trust lead treatment (navy, tight tracking).
+ * Critical stories stay siren red.
  */
 export function LeadStory(props: {
   lead: GroupedArticle | null;
@@ -15,20 +15,20 @@ export function LeadStory(props: {
   const ls = props.lead;
   const isKev = ls.kev === true;
   return (
-    <section className="mb-6">
-      <header className="flex items-baseline gap-2 pb-1 mb-3 border-b-2 border-[var(--color-siren)]">
-        <span className="siren">{"\u25A0"}</span>
-        <h2 className="section-heading" style={{ borderBottom: "none", marginBottom: 0, paddingBottom: 0 }}>
-          Lead Story
-        </h2>
-      </header>
-      <div className="px-1">
-        <h3 className="lead-title siren">
-          <a href={ls.url} target="_blank" rel="noopener noreferrer nofollow">
+    <section className="panel mb-4 pb-3 border-b border-[var(--color-line)]">
+      <h2 className="section-heading">Lead Story</h2>
+      <div>
+        <h3>
+          <a
+            href={ls.url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className={`lead-title inline-block ${isKev || ls.priority === "critical" ? "headline-critical" : ""}`}
+          >
             {ls.title}
           </a>
         </h3>
-        <div className="mt-1 text-[11px] mono text-[var(--color-muted)] flex items-center gap-2 flex-wrap">
+        <div className="mt-2 text-[11px] uppercase tracking-widest text-[var(--color-muted)] flex items-center gap-2 flex-wrap">
           <span className="source-badge">{ls.source}</span>
           <span>{timeAgo(ls.publishedAt)}</span>
           <span className="opacity-70">({fullStamp(ls.publishedAt)})</span>
@@ -40,7 +40,7 @@ export function LeadStory(props: {
           </p>
         )}
         {ls.related.length > 0 && (
-          <div className="mt-2 text-[11px] mono text-[var(--color-muted)]">
+          <div className="mt-2 text-[11px] text-[var(--color-muted)]">
             <span className="underline">Also covered by:</span>{" "}
             {ls.related.slice(0, 6).map((r, i) => (
               <span key={r.id}>
