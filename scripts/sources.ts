@@ -188,6 +188,7 @@ export const FEEDS: FeedDef[] = [
   { name: "CERT-EU",               url: "https://cert.europa.eu/publications/security-advisories-rss",       category: "policy_regulation",   priority: "normal" },
   { name: "NCSC UK",               url: "https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml",        category: "policy_regulation",   priority: "normal" },
   { name: "SANS ISC",              url: "https://isc.sans.edu/rssfeed_full.xml",                             category: "threat_intelligence", priority: "high" },
+  { name: "ICHI – Internet Cyber Health Index", url: "https://ichi.global/api/alerts",                      category: "threat_intelligence", priority: "high" },
   { name: "CERT/CC Vuln Notes",    url: "https://www.kb.cert.org/vuls/atomfeed/",                            category: "vulnerabilities",     priority: "high", maxItems: 10 },
   { name: "SEC Press Releases",    url: "https://www.sec.gov/news/pressreleases.rss",                        category: "policy_regulation",   priority: "normal", maxItems: 6 },
   { name: "FBI IC3 PSAs",          url: "https://www.ic3.gov/PSA/RSS",                                       category: "phishing_fraud",      priority: "high", maxItems: 5 },
